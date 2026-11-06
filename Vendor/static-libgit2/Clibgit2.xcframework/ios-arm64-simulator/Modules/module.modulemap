@@ -1,0 +1,8 @@
+module Clibgit2 {
+    header "git2.h"
+    export *
+    link "z"
+    link "iconv"
+    link framework "Security"
+    link framework "CoreFoundation"
+}
