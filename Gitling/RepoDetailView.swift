@@ -334,7 +334,8 @@ struct RepoDetailView: View {
         remotes = loaded.remotes
         sync = loaded.sync
         statusText = loaded.statusText
-        savedAccount = GitClient.host(of: loaded.origin).flatMap { KeychainStore.load(host: $0)?.username }
+        savedAccount = store.accountUsername(for: loaded.origin, repoName: name)
+            ?? GitClient.host(of: loaded.origin).flatMap { KeychainStore.load(host: $0)?.username }
         linkedFolder = GitClient.linkedFolderName(at: repoURL)
     }
 }
@@ -626,7 +627,7 @@ private struct RepoOperationsSheet: View {
                         .disabled(store.isBusy || origin.isEmpty)
                     Button("Push") {
                         saveCredentials()
-                        let creds = store.account(for: origin, username: username, secret: secret)
+                        let creds = store.account(for: origin, repoName: name, username: username, secret: secret)
                         store.push(name: name, username: creds.username, secret: creds.secret)
                         dismiss()
                     }
@@ -803,7 +804,7 @@ private struct RepoOperationsSheet: View {
     }
 
     private func sync(fetch: Bool) {
-        let creds = store.account(for: origin, username: username, secret: secret)
+        let creds = store.account(for: origin, repoName: name, username: username, secret: secret)
         if fetch {
             store.fetch(name: name, username: creds.username, secret: creds.secret)
         } else {

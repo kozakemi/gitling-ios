@@ -227,7 +227,8 @@ struct RepoListView: View {
 private struct AddRepoSheet: View {
     @EnvironmentObject private var store: RepoStore
     @Environment(\.dismiss) private var dismiss
-    @State private var kind = 0
+    @State private var kind = 1
+    @State private var source = "manual"
     @State private var url = ""
     @State private var name = ""
     @State private var username = ""
@@ -241,31 +242,62 @@ private struct AddRepoSheet: View {
         NavigationStack {
             Form {
                 Picker("Action", selection: $kind) {
-                    Text("Clone").tag(0)
                     Text("New Local Repository").tag(1)
+                    Text("Clone").tag(0)
                 }
                 if kind == 0 {
-                    TextField("Remote URL", text: $url)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                    TextField("Local Name", text: $name)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("Username", text: $username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    SecureField("Password or Token", text: $secret)
-                    if secret.isEmpty, let savedAccount {
-                        Text(String(format: String(localized: "Saved account %@ is used when these fields are empty."), savedAccount))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    Section("Repository Source") {
+                        Picker("Account", selection: $source) {
+                            Text("Enter URL manually").tag("manual")
+                            ForEach(store.accounts) { account in
+                                Text(account.accountLabel).tag(account.id.uuidString)
+                            }
+                        }
+                        if let selectedAccount {
+                            LabeledContent("Instance", value: selectedAccount.detail)
+                        }
                     }
-                    githubReposSection
+                    if let selectedAccount {
+                        Section("Your Repositories") {
+                            TextField("Local Name", text: $name)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            remoteProjects(for: selectedAccount)
+                        }
+                        if !url.isEmpty {
+                            Section("Selected Repository") {
+                                LabeledContent("Remote URL", value: url)
+                                if !resolvedName.isEmpty {
+                                    LabeledContent("Local Name", value: resolvedName)
+                                }
+                            }
+                        }
+                    } else {
+                        Section("Repository") {
+                            TextField("Remote URL", text: $url)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(.URL)
+                            TextField("Local Name", text: $name)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            TextField("Username", text: $username)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            SecureField("Password or Token", text: $secret)
+                            if secret.isEmpty, let savedAccount {
+                                Text(String(format: String(localized: "Saved account %@ is used when these fields are empty."), savedAccount))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 } else {
-                    TextField("Local Name", text: $name)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    Section("Repository") {
+                        TextField("Local Name", text: $name)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
                 }
                 Section("Working Folder") {
                     if folderName != nil {
@@ -293,7 +325,15 @@ private struct AddRepoSheet: View {
                         .disabled(!canSubmit)
                 }
             }
-            .onAppear { if kind == 0 { store.loadGitHubRepos() } }
+            .onChange(of: source) { _, newValue in
+                url = ""
+                repoQuery = ""
+                guard newValue != "manual", let account = selectedAccount else {
+                    store.clearRemoteProjects()
+                    return
+                }
+                store.loadRemoteProjects(for: account)
+            }
             .fileImporter(isPresented: $pickFolder, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls):
@@ -315,6 +355,73 @@ private struct AddRepoSheet: View {
         }
     }
 
+    private var selectedAccount: RemoteAccount? {
+        guard source != "manual", let id = UUID(uuidString: source) else { return nil }
+        return store.account(id: id)
+    }
+
+    @ViewBuilder
+    private func remoteProjects(for account: RemoteAccount) -> some View {
+        if store.isLoadingRemoteProjects && store.remoteProjectsAccountID == account.id {
+            ProgressView()
+        } else if store.remoteProjectsAccountID == account.id {
+            TextField("Search repositories", text: $repoQuery)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            ForEach(filteredRemoteProjects) { project in
+                Button {
+                    url = project.cloneURL
+                    if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        name = project.name
+                    }
+                } label: {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(project.fullName)
+                            if !project.description.isEmpty {
+                                Text(project.description)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Text(projectDetail(project))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer(minLength: 4)
+                        if url == project.cloneURL {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            if let message = store.remoteProjectsMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var filteredRemoteProjects: [RemoteProject] {
+        let query = repoQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return store.remoteProjects }
+        return store.remoteProjects.filter {
+            $0.fullName.localizedStandardContains(query)
+                || $0.description.localizedStandardContains(query)
+        }
+    }
+
+    private func projectDetail(_ project: RemoteProject) -> String {
+        var parts: [String] = []
+        if project.stars > 0 { parts.append("★ \(project.stars)") }
+        if !project.language.isEmpty { parts.append(project.language) }
+        if parts.isEmpty { parts.append(project.provider.title) }
+        return parts.joined(separator: " · ")
+    }
+
     private var folderDisplay: String {
         let repoName = kind == 0 ? resolvedName : name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let folderName else { return "" }
@@ -322,70 +429,10 @@ private struct AddRepoSheet: View {
         return "\(folderName)/\(repoName)"
     }
 
-    @ViewBuilder
-    private var githubReposSection: some View {
-        Section("Your GitHub Repositories") {
-            if store.githubLogin == nil {
-                Text("Connect with GitHub in Settings to choose a repository.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                TextField("Search repositories", text: $repoQuery)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                if store.isLoadingGitHubRepos {
-                    ProgressView()
-                }
-                ForEach(filteredGitHubRepos) { repo in
-                    Button {
-                        url = repo.cloneURL
-                        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            name = repo.name
-                        }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(repo.fullName)
-                            if !repo.description.isEmpty {
-                                Text(repo.description)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Text(repoDetail(repo))
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-                if let githubReposMessage = store.githubReposMessage {
-                    Text(githubReposMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    private var filteredGitHubRepos: [GitHubRepo] {
-        let query = repoQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return store.githubRepos }
-        return store.githubRepos.filter {
-            $0.fullName.localizedStandardContains(query) || $0.description.localizedStandardContains(query)
-        }
-    }
-
-    private func repoDetail(_ repo: GitHubRepo) -> String {
-        var parts = ["★ \(repo.stars)"]
-        if !repo.language.isEmpty { parts.append(repo.language) }
-        return parts.joined(separator: " · ")
-    }
-
     private var savedAccount: String? {
-        _ = store.githubLogin
         guard secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let host = GitClient.host(of: url) else { return nil }
-        return KeychainStore.load(host: host)?.username
+              let account = store.account(for: url) else { return nil }
+        return account.username
     }
 
     private var canSubmit: Bool {
@@ -410,6 +457,7 @@ private struct AddRepoSheet: View {
                 name: resolvedName,
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines),
                 secret: secret,
+                accountID: selectedAccount?.id,
                 worktreeBookmark: folderBookmark
             )
         } else {
@@ -424,6 +472,7 @@ private struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var filesInfo: String?
+    @State private var showGitLabAccount = false
 
     var body: some View {
         NavigationStack {
@@ -436,7 +485,7 @@ private struct SettingsSheet: View {
                         .autocorrectionDisabled()
                         .keyboardType(.emailAddress)
                 }
-                githubSection
+                accountsSection
                 Section("Files") {
                     Button("Show in Files") {
                         Task {
@@ -475,6 +524,9 @@ private struct SettingsSheet: View {
             } message: {
                 Text(filesInfo ?? "")
             }
+            .sheet(isPresented: $showGitLabAccount) {
+                GitLabAccountSheet()
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("OK") {
@@ -487,8 +539,36 @@ private struct SettingsSheet: View {
     }
 
     @ViewBuilder
-    private var githubSection: some View {
-        Section("GitHub") {
+    private var accountsSection: some View {
+        Section("Accounts") {
+            if store.accounts.isEmpty {
+                Text("No accounts yet. Add GitHub or GitLab to clone remote repositories.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(store.accounts) { account in
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(account.displayName)
+                            Text(account.accountLabel)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(account.detail)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer(minLength: 4)
+                        Button(role: .destructive) {
+                            store.removeAccount(account)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(Text("Remove Account"))
+                    }
+                }
+            }
+
             if let prompt = store.githubPrompt {
                 Text(prompt.userCode)
                     .font(.title.monospaced())
@@ -498,14 +578,14 @@ private struct SettingsSheet: View {
                     .foregroundStyle(.secondary)
                 Button("Open Verification Page") { openURL(prompt.url) }
                 Button("Cancel") { store.cancelGitHub() }
-            } else if let login = store.githubLogin {
-                Text(String(format: String(localized: "Connected as %@"), login))
-                Button("Sign Out", role: .destructive) { store.signOutGitHub() }
             } else {
-                Button("Connect with GitHub") {
+                Button("Add GitHub Account") {
                     store.connectGitHub { openURL($0) }
                 }
                 .disabled(store.githubBusy)
+            }
+            Button("Add GitLab Account") {
+                showGitLabAccount = true
             }
             if store.githubBusy {
                 ProgressView()
@@ -520,5 +600,92 @@ private struct SettingsSheet: View {
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
+    }
+}
+private struct GitLabAccountSheet: View {
+    @EnvironmentObject private var store: RepoStore
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var baseURL = "https://gitlab.com"
+    @State private var token = ""
+    @State private var displayName = ""
+    @State private var isConnecting = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("GitLab Instance") {
+                    TextField("GitLab instance URL", text: $baseURL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    Text("Use the instance root, for example https://gitlab.example.com or https://gitlab.com.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextField("Display Name (optional)", text: $displayName)
+                        .textInputAutocapitalization(.words)
+                }
+                Section("Personal Access Token") {
+                    SecureField("Personal Access Token", text: $token)
+                    Text("Create a token with read_api, read_repository, and write_repository.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if let tokenSettingsURL {
+                        Button("Open GitLab Token Settings") {
+                            openURL(tokenSettingsURL)
+                        }
+                    }
+                }
+                if let error {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Add GitLab Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(isConnecting)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isConnecting)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isConnecting {
+                        ProgressView()
+                    } else {
+                        Button("Connect") { connect() }
+                            .disabled(baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private var tokenSettingsURL: URL? {
+        guard let base = InstanceURL.canonical(baseURL) else { return nil }
+        return base.appendingPathComponent("-/user_settings/personal_access_tokens")
+    }
+
+    private func connect() {
+        isConnecting = true
+        error = nil
+        Task {
+            do {
+                _ = try await store.connectGitLab(
+                    baseURL: baseURL,
+                    token: token,
+                    displayName: displayName
+                )
+                dismiss()
+            } catch {
+                self.error = error.localizedDescription
+                isConnecting = false
+            }
+        }
     }
 }

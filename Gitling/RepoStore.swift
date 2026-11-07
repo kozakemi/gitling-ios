@@ -10,15 +10,17 @@ final class RepoStore: ObservableObject {
     @Published var revision = 0
     @Published var userName: String
     @Published var userEmail: String
-    @Published var githubLogin: String?
     @Published var githubPrompt: GitHubPrompt?
     @Published var githubMessage: String?
-    @Published var githubRepos: [GitHubRepo] = []
-    @Published var githubReposMessage: String?
-    @Published var isLoadingGitHubRepos = false
+    @Published private(set) var accounts: [RemoteAccount] = []
+    @Published var remoteProjects: [RemoteProject] = []
+    @Published var remoteProjectsMessage: String?
+    @Published var isLoadingRemoteProjects = false
+    @Published private(set) var remoteProjectsAccountID: UUID?
     @Published var focusName: String?
     private var githubTask: Task<Void, Never>?
     private var githubGeneration = 0
+    private var remoteProjectsGeneration = 0
     private var reloadGeneration = 0
 
     struct GitHubPrompt: Equatable {
@@ -36,7 +38,7 @@ final class RepoStore: ObservableObject {
         }
         userName = UserDefaults.standard.string(forKey: Keys.name) ?? ""
         userEmail = UserDefaults.standard.string(forKey: Keys.email) ?? ""
-        githubLogin = KeychainStore.load(host: GitHubAuth.host)?.username
+        loadAccounts()
         Task { await reload() }
     }
 
@@ -61,7 +63,221 @@ final class RepoStore: ObservableObject {
         UserDefaults.standard.set(userEmail, forKey: Keys.email)
     }
 
-    func clone(url: String, name: String, username: String, secret: String, worktreeBookmark: Data? = nil) {
+    // MARK: Accounts
+
+    func account(id: UUID?) -> RemoteAccount? {
+        guard let id else { return nil }
+        return accounts.first { $0.id == id }
+    }
+
+    func accounts(for provider: GitProvider) -> [RemoteAccount] {
+        accounts.filter { $0.provider == provider }
+    }
+
+    func secret(for account: RemoteAccount) -> String? {
+        KeychainStore.loadSecret(accountID: account.id)
+    }
+
+    @discardableResult
+    func addAccount(
+        provider: GitProvider,
+        baseURL: String,
+        username: String,
+        token: String,
+        displayName: String? = nil
+    ) -> RemoteAccount? {
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !username.isEmpty, !trimmedToken.isEmpty else { return nil }
+        let canonical = InstanceURL.canonical(baseURL) ?? URL(string: "https://github.com")!
+        let base = canonical.absoluteString
+        let name = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let index = accounts.firstIndex(where: {
+            $0.provider == provider && $0.baseURL == base && $0.username == username
+        }) {
+            accounts[index].displayName = name.isEmpty ? accounts[index].displayName : name
+            KeychainStore.saveSecret(trimmedToken, accountID: accounts[index].id)
+            saveAccounts()
+            revision += 1
+            return accounts[index]
+        }
+        let account = RemoteAccount(
+            id: UUID(),
+            provider: provider,
+            baseURL: base,
+            username: username,
+            displayName: name.isEmpty ? username : name,
+            createdAt: Date()
+        )
+        KeychainStore.saveSecret(trimmedToken, accountID: account.id)
+        accounts.append(account)
+        saveAccounts()
+        revision += 1
+        return account
+    }
+
+    func removeAccount(_ account: RemoteAccount) {
+        KeychainStore.deleteSecret(accountID: account.id)
+        accounts.removeAll { $0.id == account.id }
+        var links = repoAccountLinks()
+        links = links.filter { $0.value != account.id.uuidString }
+        UserDefaults.standard.set(links, forKey: Keys.repoAccounts)
+        saveAccounts()
+        revision += 1
+    }
+
+    func linkedAccountID(for repoName: String) -> UUID? {
+        repoAccountLinks()[repoName].flatMap(UUID.init(uuidString:))
+    }
+
+    func linkRepo(_ repoName: String, to account: RemoteAccount) {
+        var links = repoAccountLinks()
+        links[repoName] = account.id.uuidString
+        UserDefaults.standard.set(links, forKey: Keys.repoAccounts)
+    }
+
+    func removeRepoLink(_ repoName: String) {
+        var links = repoAccountLinks()
+        links.removeValue(forKey: repoName)
+        UserDefaults.standard.set(links, forKey: Keys.repoAccounts)
+    }
+
+    func account(for urlString: String, repoName: String? = nil) -> RemoteAccount? {
+        if let repoName,
+           let id = linkedAccountID(for: repoName),
+           let linked = account(id: id) {
+            return linked
+        }
+        return accounts.first { $0.matches(urlString) }
+    }
+
+    func accountUsername(for urlString: String, repoName: String? = nil) -> String? {
+        account(for: urlString, repoName: repoName)?.username
+    }
+
+    func connectGitLab(baseURL: String, token: String, displayName: String?) async throws -> RemoteAccount {
+        guard let url = InstanceURL.canonical(baseURL) else {
+            throw GitLabClientError.invalidInstance
+        }
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw GitLabClientError.unauthorized }
+        let user = try await GitLabClient.fetchUser(baseURL: url, token: trimmed)
+        guard let account = addAccount(
+            provider: .gitlab,
+            baseURL: url.absoluteString,
+            username: user.username,
+            token: trimmed,
+            displayName: displayName
+        ) else {
+            throw GitLabClientError.invalidResponse
+        }
+        return account
+    }
+
+    // MARK: Remote projects
+
+    func clearRemoteProjects() {
+        remoteProjectsGeneration += 1
+        remoteProjects = []
+        remoteProjectsMessage = nil
+        isLoadingRemoteProjects = false
+        remoteProjectsAccountID = nil
+    }
+
+    func loadRemoteProjects(for account: RemoteAccount) {
+        remoteProjectsGeneration += 1
+        let generation = remoteProjectsGeneration
+        guard let token = KeychainStore.loadSecret(accountID: account.id), !token.isEmpty else {
+            remoteProjects = []
+            remoteProjectsAccountID = account.id
+            remoteProjectsMessage = String(localized: "Reconnect this account to load its repositories.")
+            isLoadingRemoteProjects = false
+            return
+        }
+        remoteProjects = []
+        remoteProjectsMessage = nil
+        remoteProjectsAccountID = account.id
+        isLoadingRemoteProjects = true
+        Task {
+            do {
+                let projects: [RemoteProject]
+                switch account.provider {
+                case .github:
+                    let repos = try await GitHubAuth.fetchRepos(token: token)
+                    projects = repos.map { repo in
+                        RemoteProject(
+                            id: "github:\(repo.fullName)",
+                            provider: .github,
+                            name: repo.name,
+                            fullName: repo.fullName,
+                            description: repo.description,
+                            cloneURL: repo.cloneURL,
+                            stars: repo.stars,
+                            language: repo.language
+                        )
+                    }
+                case .gitlab:
+                    projects = try await GitLabClient.fetchProjects(baseURL: URL(string: account.baseURL)!, token: token)
+                }
+                guard generation == remoteProjectsGeneration else { return }
+                remoteProjects = projects
+                if projects.isEmpty {
+                    remoteProjectsMessage = account.provider == .github
+                        ? String(localized: "This GitHub account has no repositories.")
+                        : String(localized: "This GitLab account has no repositories.")
+                }
+            } catch {
+                guard generation == remoteProjectsGeneration else { return }
+                remoteProjects = []
+                remoteProjectsMessage = error.localizedDescription
+            }
+            if generation == remoteProjectsGeneration {
+                isLoadingRemoteProjects = false
+            }
+        }
+    }
+
+    private func repoAccountLinks() -> [String: String] {
+        UserDefaults.standard.dictionary(forKey: Keys.repoAccounts) as? [String: String] ?? [:]
+    }
+
+    private func loadAccounts() {
+        if let data = UserDefaults.standard.data(forKey: Keys.accounts),
+           let decoded = try? JSONDecoder().decode([RemoteAccount].self, from: data) {
+            accounts = decoded
+        }
+        migrateLegacyGitHubAccountIfNeeded()
+    }
+
+    private func saveAccounts() {
+        guard let data = try? JSONEncoder().encode(accounts) else { return }
+        UserDefaults.standard.set(data, forKey: Keys.accounts)
+    }
+
+    private func migrateLegacyGitHubAccountIfNeeded() {
+        guard accounts.isEmpty,
+              let legacy = KeychainStore.load(host: GitHubAuth.host),
+              !legacy.secret.isEmpty else { return }
+        let account = RemoteAccount(
+            id: UUID(),
+            provider: .github,
+            baseURL: "https://github.com",
+            username: legacy.username,
+            displayName: legacy.username,
+            createdAt: Date()
+        )
+        KeychainStore.saveSecret(legacy.secret, accountID: account.id)
+        accounts = [account]
+        saveAccounts()
+    }
+
+    func clone(
+        url: String,
+        name: String,
+        username: String,
+        secret: String,
+        accountID: UUID? = nil,
+        worktreeBookmark: Data? = nil
+    ) {
         let root = root
         let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -69,8 +285,15 @@ final class RepoStore: ObservableObject {
             alert = String(localized: "The demo only clones HTTPS repositories.")
             return
         }
-        let creds = account(for: url, username: username, secret: secret)
-        run(String(localized: "Cloning…"), focus: name) {
+        let chosen = account(id: accountID)
+        let creds = credentials(
+            for: chosen,
+            urlString: url,
+            repoName: name,
+            username: username,
+            secret: secret
+        )
+        run(String(localized: "Cloning…"), focus: name, linkAccount: chosen) {
             try GitClient.clone(
                 url: url,
                 name: name,
@@ -79,10 +302,30 @@ final class RepoStore: ObservableObject {
                 secret: creds.secret,
                 worktreeBookmark: worktreeBookmark
             )
-            if let host = GitClient.host(of: url), !creds.secret.isEmpty {
+            if chosen == nil, let host = GitClient.host(of: url), !secret.isEmpty {
                 KeychainStore.save(host: host, username: creds.username, secret: creds.secret)
             }
         }
+    }
+
+    private func credentials(
+        for account: RemoteAccount?,
+        urlString: String,
+        repoName: String,
+        username: String,
+        secret: String
+    ) -> (username: String, secret: String) {
+        let typedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let typedSecret = secret.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typedSecret.isEmpty {
+            return (typedUsername, typedSecret)
+        }
+        let matched = account ?? self.account(for: urlString, repoName: repoName)
+        if let matched, let token = self.secret(for: matched), !token.isEmpty {
+            return (matched.provider == .gitlab ? "oauth2" : matched.username, token)
+        }
+        let legacy = GitClient.host(of: urlString).flatMap { KeychainStore.load(host: $0) }
+        return RemoteCredentials.resolve(username: typedUsername, secret: typedSecret, saved: legacy)
     }
 
     func connectGitHub(open: @escaping (URL) -> Void) {
@@ -107,8 +350,13 @@ final class RepoStore: ObservableObject {
                 guard githubGeneration == generation else { return }
                 let login = try await GitHubAuth.fetchLogin(token: token)
                 guard githubGeneration == generation else { return }
-                KeychainStore.save(host: GitHubAuth.host, username: login, secret: token)
-                githubLogin = login
+                _ = addAccount(
+                    provider: .github,
+                    baseURL: "https://github.com",
+                    username: login,
+                    token: token,
+                    displayName: login
+                )
                 githubPrompt = nil
                 githubMessage = String(format: String(localized: "Connected as %@"), login)
                 revision += 1
@@ -130,42 +378,14 @@ final class RepoStore: ObservableObject {
         githubPrompt = nil
     }
 
-    func signOutGitHub() {
-        cancelGitHub()
-        KeychainStore.delete(host: GitHubAuth.host)
-        githubLogin = nil
-        githubMessage = nil
-        revision += 1
-    }
-
-    func loadGitHubRepos() {
-        guard let token = KeychainStore.load(host: GitHubAuth.host)?.secret, !token.isEmpty else {
-            githubRepos = []
-            isLoadingGitHubRepos = false
-            githubReposMessage = String(localized: "Connect with GitHub in Settings to choose a repository.")
-            return
-        }
-        guard !isLoadingGitHubRepos else { return }
-        isLoadingGitHubRepos = true
-        githubReposMessage = nil
-        Task {
-            do {
-                let repos = try await GitHubAuth.fetchRepos(token: token)
-                githubRepos = repos
-                if repos.isEmpty {
-                    githubReposMessage = String(localized: "This GitHub account has no repositories.")
-                }
-            } catch {
-                githubRepos = []
-                githubReposMessage = error.localizedDescription
-            }
-            isLoadingGitHubRepos = false
-        }
-    }
-
-    func account(for urlString: String, username: String, secret: String) -> (username: String, secret: String) {
-        let saved = GitClient.host(of: urlString).flatMap { KeychainStore.load(host: $0) }
-        return RemoteCredentials.resolve(username: username, secret: secret, saved: saved)
+    func account(for urlString: String, repoName: String, username: String, secret: String) -> (username: String, secret: String) {
+        credentials(
+            for: account(for: urlString, repoName: repoName),
+            urlString: urlString,
+            repoName: repoName,
+            username: username,
+            secret: secret
+        )
     }
 
     func create(name: String, worktreeBookmark: Data? = nil) {
@@ -178,6 +398,7 @@ final class RepoStore: ObservableObject {
 
     func delete(name: String) {
         let url = root.appendingPathComponent(name, isDirectory: true)
+        removeRepoLink(name)
         run(String(localized: "Working…")) {
             try RepoWriteLock.withLock(at: url) {
                 try RepoStorage.removeRepository(named: name)
@@ -328,27 +549,35 @@ final class RepoStore: ObservableObject {
         root.appendingPathComponent(name, isDirectory: true)
     }
 
-    private func run(_ label: String, focus: String? = nil, _ work: @escaping @Sendable () throws -> Void) {
+    private func run(
+        _ label: String,
+        focus: String? = nil,
+        linkAccount: RemoteAccount? = nil,
+        _ work: @escaping @Sendable () throws -> Void
+    ) {
         guard !isBusy else { return }
         isBusy = true
         statusLine = label
         Task.detached {
             do {
                 try work()
-                await self.finish(nil, focus: focus)
+                await self.finish(nil, focus: focus, linkAccount: linkAccount)
             } catch {
                 await self.finish(error.localizedDescription)
             }
         }
     }
 
-    private func finish(_ error: String?, focus: String? = nil) async {
+    private func finish(_ error: String?, focus: String? = nil, linkAccount: RemoteAccount? = nil) async {
         isBusy = false
         statusLine = ""
         if let error {
             alert = error
         } else {
             focusName = focus
+            if let focus, let linkAccount {
+                linkRepo(focus, to: linkAccount)
+            }
         }
         revision += 1
         RepoStorage.publish()
@@ -361,5 +590,7 @@ final class RepoStore: ObservableObject {
     private enum Keys {
         static let name = "gitling.userName"
         static let email = "gitling.userEmail"
+        static let accounts = "gitling.accounts.v1"
+        static let repoAccounts = "gitling.repoAccounts.v1"
     }
 }

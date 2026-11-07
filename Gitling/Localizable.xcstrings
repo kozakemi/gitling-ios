@@ -2973,6 +2973,438 @@
           }
         }
       }
+    },
+    "GitLab": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント"
+          }
+        }
+      }
+    },
+    "Connect": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続"
+          }
+        }
+      }
+    },
+    "Personal Access Token": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个人访问令牌"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パーソナルアクセストークン"
+          }
+        }
+      }
+    },
+    "Add GitLab Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加 GitLab 账户"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabアカウントを追加"
+          }
+        }
+      }
+    },
+    "Add GitHub Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加 GitHub 账户"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHubアカウントを追加"
+          }
+        }
+      }
+    },
+    "Remove Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除账户"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを削除"
+          }
+        }
+      }
+    },
+    "Repository Source": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仓库来源"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリのソース"
+          }
+        }
+      }
+    },
+    "Enter URL manually": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动输入 URL"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URLを手動入力"
+          }
+        }
+      }
+    },
+    "Instance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实例"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インスタンス"
+          }
+        }
+      }
+    },
+    "Your Repositories": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的仓库"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリ"
+          }
+        }
+      }
+    },
+    "Selected Repository": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选仓库"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択中のリポジトリ"
+          }
+        }
+      }
+    },
+    "No accounts yet. Add GitHub or GitLab to clone remote repositories.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有账户。添加 GitHub 或 GitLab 后即可克隆远程仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントがありません。GitHubまたはGitLabを追加すると、リモートリポジトリをクローンできます。"
+          }
+        }
+      }
+    },
+    "Reconnect this account to load its repositories.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新连接该账户后即可加载仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアカウントを再接続するとリポジトリを読み込めます。"
+          }
+        }
+      }
+    },
+    "This GitLab account has no repositories.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个 GitLab 账号下没有仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このGitLabアカウントにはリポジトリがありません。"
+          }
+        }
+      }
+    },
+    "GitLab Instance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab 实例"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabインスタンス"
+          }
+        }
+      }
+    },
+    "GitLab instance URL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab 实例地址"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabインスタンスURL"
+          }
+        }
+      }
+    },
+    "Use the instance root, for example https://gitlab.example.com or https://gitlab.com.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填写实例根地址，例如 https://gitlab.example.com 或 https://gitlab.com。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インスタンスのルートURLを入力してください。例: https://gitlab.example.com または https://gitlab.com。"
+          }
+        }
+      }
+    },
+    "Display Name (optional)": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示名称（可选）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示名（任意）"
+          }
+        }
+      }
+    },
+    "Create a token with read_api, read_repository, and write_repository.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建一个具有 read_api、read_repository 和 write_repository 权限的令牌。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "read_api、read_repository、write_repository 権限のトークンを作成してください。"
+          }
+        }
+      }
+    },
+    "Enter a valid HTTPS GitLab address.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的 HTTPS GitLab 地址。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なHTTPSのGitLabアドレスを入力してください。"
+          }
+        }
+      }
+    },
+    "GitLab rejected this token. Check that it is valid and has read_api.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab 拒绝了这个令牌。请确认令牌有效并有 read_api 权限。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabがこのトークンを拒否しました。有効でread_api権限があるか確認してください。"
+          }
+        }
+      }
+    },
+    "This token does not have permission to read this GitLab account.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个令牌没有读取该 GitLab 账号的权限。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このトークンにはこのGitLabアカウントを読み取る権限がありません。"
+          }
+        }
+      }
+    },
+    "Couldn't reach GitLab. Check the address and your connection.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接 GitLab。请检查地址和网络。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabに接続できません。アドレスと接続を確認してください。"
+          }
+        }
+      }
+    },
+    "This address did not answer like a GitLab instance.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该地址不像 GitLab 实例。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアドレスはGitLabインスタンスとして応答しませんでした。"
+          }
+        }
+      }
+    },
+    "Couldn't load repositories from this GitLab account.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取这个 GitLab 账号下的仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このGitLabアカウントのリポジトリを読み込めませんでした。"
+          }
+        }
+      }
+    },
+    "Open GitLab Token Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 GitLab 令牌设置"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLabトークン設定を開く"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
