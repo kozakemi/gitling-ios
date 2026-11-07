@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct RepoDetailView: View {
@@ -168,15 +169,21 @@ struct RepoDetailView: View {
                                                 .lineLimit(1)
                                                 .truncationMode(.tail)
                                         }
-                                        Text("\(row.commit.author) · \(row.commit.date.formatted(date: .abbreviated, time: .shortened))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
+                                        HStack(spacing: 4) {
+                                            Text("\(row.commit.author) · \(row.commit.date.formatted(date: .abbreviated, time: .shortened))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                            Spacer(minLength: 4)
+                                            branchChips(for: row.commit.id)
+                                        }
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.vertical, 7)
                                 }
-                                .frame(height: commitRowHeight)
+                                .frame(maxWidth: .infinity, minHeight: commitRowHeight, maxHeight: commitRowHeight, alignment: .leading)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 12))
                             .listRowSeparator(.hidden)
                         }
@@ -185,6 +192,35 @@ struct RepoDetailView: View {
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
             }
+        }
+    }
+
+    private func branchRefs(for commitID: String) -> [BranchInfo] {
+        branches
+            .filter { $0.target == commitID }
+            .sorted { lhs, rhs in
+                if lhs.isCurrent != rhs.isCurrent { return lhs.isCurrent }
+                if lhs.isRemote != rhs.isRemote { return !lhs.isRemote }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+    }
+
+    @ViewBuilder
+    private func branchChips(for commitID: String) -> some View {
+        let refs = branchRefs(for: commitID)
+        if !refs.isEmpty {
+            HStack(spacing: 3) {
+                ForEach(refs.prefix(2)) { ref in
+                    if ref.isCurrent {
+                        CommitRefChip(text: "HEAD", kind: .head)
+                    }
+                    CommitRefChip(text: ref.name, kind: ref.isRemote ? .remote : .local)
+                }
+                if refs.count > 2 {
+                    CommitRefChip(text: "+\(refs.count - 2)", kind: .more)
+                }
+            }
+            .layoutPriority(1)
         }
     }
 
@@ -272,7 +308,7 @@ struct RepoDetailView: View {
         let url = repoURL
         let everyBranch = allBranches
         let loaded = await Task.detached { () -> Loaded in
-            let summary = GitClient.list(root: url.deletingLastPathComponent()).first { $0.name == url.lastPathComponent }
+            let summary = GitClient.summary(at: url)
             let history = (try? GitClient.history(at: url, allBranches: everyBranch)) ?? []
             let changes = (try? GitClient.status(at: url)) ?? []
             let branches = (try? GitClient.branches(at: url)) ?? []
@@ -369,6 +405,142 @@ private struct FileBrowser: View {
     }
 }
 
+private struct CommitRefChip: View {
+    enum Kind {
+        case head
+        case local
+        case remote
+        case more
+    }
+
+    let text: String
+    let kind: Kind
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(foreground)
+            .background(background, in: Capsule())
+    }
+
+    private var foreground: Color {
+        switch kind {
+        case .head: return .white
+        case .local: return .accentColor
+        case .remote, .more: return .secondary
+        }
+    }
+
+    private var background: Color {
+        switch kind {
+        case .head: return .accentColor
+        case .local: return .accentColor.opacity(0.14)
+        case .remote, .more: return Color(.secondarySystemFill)
+        }
+    }
+}
+
+private struct DiffTextView: UIViewRepresentable {
+    let text: String
+
+    func makeUIView(context: Context) -> UITextView {
+        let view = UITextView()
+        view.isEditable = false
+        view.isSelectable = true
+        view.backgroundColor = .clear
+        view.textAlignment = .left
+        view.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        view.textContainer.lineFragmentPadding = 0
+        view.alwaysBounceVertical = true
+        view.attributedText = DiffStyler.attributed(text, font: font)
+        return view
+    }
+
+    func updateUIView(_ view: UITextView, context: Context) {
+        if view.attributedText.string != text || view.font?.pointSize != font.pointSize {
+            view.font = font
+            view.attributedText = DiffStyler.attributed(text, font: font)
+        }
+    }
+
+    private var font: UIFont {
+        UIFont.monospacedSystemFont(
+            ofSize: UIFont.preferredFont(forTextStyle: .caption1).pointSize,
+            weight: .regular
+        )
+    }
+}
+
+private enum DiffStyler {
+    static func attributed(_ text: String, font: UIFont) -> NSAttributedString {
+        let result = NSMutableAttributedString(
+            string: text,
+            attributes: [
+                .font: font,
+                .foregroundColor: UIColor.label,
+            ]
+        )
+        let ns = text as NSString
+        var location = 0
+        var inPatch = false
+        while location < ns.length {
+            let lineRange = ns.lineRange(for: NSRange(location: location, length: 0))
+            let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+            if line.hasPrefix("diff --git ")
+                || line.hasPrefix("diff --cc ")
+                || line.hasPrefix("diff --combined ") {
+                inPatch = true
+            }
+            guard inPatch else {
+                location = NSMaxRange(lineRange)
+                continue
+            }
+
+            var color: UIColor?
+            var bold = false
+            if line.hasPrefix("@@") {
+                color = .systemBlue
+                bold = true
+            } else if line.hasPrefix("+++") || line.hasPrefix("---") {
+                color = .secondaryLabel
+            } else if line.hasPrefix("diff --git")
+                || line.hasPrefix("index ")
+                || line.hasPrefix("new file mode ")
+                || line.hasPrefix("deleted file mode ")
+                || line.hasPrefix("old mode ")
+                || line.hasPrefix("new mode ")
+                || line.hasPrefix("similarity index ")
+                || line.hasPrefix("rename from ")
+                || line.hasPrefix("rename to ")
+                || line.hasPrefix("Binary files ") {
+                color = .secondaryLabel
+            } else if line.hasPrefix("+") {
+                color = .systemGreen
+            } else if line.hasPrefix("-") {
+                color = .systemRed
+            } else if line.hasPrefix("\\ No newline ") {
+                color = .secondaryLabel
+            }
+
+            if let color {
+                result.addAttribute(.foregroundColor, value: color, range: lineRange)
+            }
+            if bold {
+                result.addAttribute(
+                    .font,
+                    value: UIFont.monospacedSystemFont(ofSize: font.pointSize, weight: .semibold),
+                    range: lineRange
+                )
+            }
+            location = NSMaxRange(lineRange)
+        }
+        return result
+    }
+}
+
 private struct CommitDetailView: View {
     let repo: URL
     let commit: CommitInfo
@@ -389,17 +561,8 @@ private struct CommitDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
             } else {
-                ScrollView([.horizontal, .vertical]) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                            Text(line.isEmpty ? " " : line)
-                                .font(.caption.monospaced())
-                                .fixedSize(horizontal: true, vertical: false)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .padding()
-                }
+                DiffTextView(text: text)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(String(commit.id.prefix(7)))
@@ -423,10 +586,6 @@ private struct CommitDetailView: View {
                 self.error = error.localizedDescription
             }
         }
-    }
-
-    private var lines: [String] {
-        text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 }
 
@@ -657,20 +816,33 @@ private struct RepoOperationsSheet: View {
 private struct DiffPage: View {
     let repo: URL
     @State private var text = ""
+    @State private var isLoading = true
 
     var body: some View {
-        ScrollView {
-            Text(text.isEmpty ? String(localized: "No changes") : text)
-                .font(.caption.monospaced())
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if text.isEmpty {
+                Text("No changes")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding()
+            } else {
+                DiffTextView(text: text)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .navigationTitle("Diff")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            let value = (try? GitClient.diff(at: repo)) ?? ""
+            let repo = repo
+            let value = await Task.detached(priority: .userInitiated) {
+                (try? GitClient.diff(at: repo)) ?? ""
+            }.value
+            guard !Task.isCancelled else { return }
             text = value.count > 80_000 ? String(value.prefix(80_000)) : value
+            isLoading = false
         }
     }
 }
