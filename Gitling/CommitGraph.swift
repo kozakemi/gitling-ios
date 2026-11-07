@@ -83,10 +83,20 @@ struct CommitGraphMark: View {
                 let arrives = lane < row.incoming.count && !row.incoming[lane].isEmpty && (lane != row.lane || row.continuesFromAbove)
                 let leaves = lane < row.outgoing.count && !row.outgoing[lane].isEmpty
                 guard arrives || leaves || lane == row.lane else { continue }
-                var path = Path()
-                path.move(to: CGPoint(x: center(lane), y: arrives ? 0 : midY))
-                path.addLine(to: CGPoint(x: center(lane), y: leaves ? size.height : midY))
-                context.stroke(path, with: .color(color(lane)), lineWidth: 2)
+                if arrives {
+                    var path = Path()
+                    path.move(to: CGPoint(x: center(lane), y: 0))
+                    path.addLine(to: CGPoint(x: center(lane), y: leaves ? size.height : midY))
+                    context.stroke(path, with: .color(color(lane)), lineWidth: 2)
+                } else if leaves && lane == row.lane {
+                    // A lane that is born at this commit (for example the second parent
+                    // of a merge) is connected by the merge curve. Drawing a second
+                    // vertical segment from midY here leaves a blue stub above the curve.
+                    var path = Path()
+                    path.move(to: CGPoint(x: center(lane), y: midY))
+                    path.addLine(to: CGPoint(x: center(lane), y: size.height))
+                    context.stroke(path, with: .color(color(lane)), lineWidth: 2)
+                }
             }
             for (from, to) in row.merges {
                 var path = Path()

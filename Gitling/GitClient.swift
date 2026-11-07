@@ -24,6 +24,8 @@ struct BranchInfo: Identifiable, Hashable {
     var name: String
     var isCurrent: Bool
     var isRemote: Bool
+    /// Commit this ref points at, when libgit2 reports a direct target.
+    var target: String?
     var id: String { (isRemote ? "remote:" : "local:") + name }
 }
 
@@ -252,8 +254,11 @@ enum GitClient {
             let tree = try headTree(repo)
             defer { git_tree_free(tree) }
             var diff: OpaquePointer?
+            var options = git_diff_options()
+            git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION))
+            options.max_size = 256 * 1024
             try check(
-                git_diff_tree_to_workdir_with_index(&diff, repo, tree, nil),
+                git_diff_tree_to_workdir_with_index(&diff, repo, tree, &options),
                 String(localized: "Could not read changes")
             )
             defer { git_diff_free(diff) }
@@ -440,8 +445,14 @@ enum GitClient {
             }
             defer { git_tree_free(oldTree) }
             var diff: OpaquePointer?
+            var options = git_diff_options()
+            git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION))
+            // A single huge generated file can make libgit2's line diff take many
+            // seconds. Treat blobs above this size as binary; the patch then stays
+            // small and the commit page opens immediately.
+            options.max_size = 256 * 1024
             try check(
-                git_diff_tree_to_tree(&diff, repo, oldTree, newTree, nil),
+                git_diff_tree_to_tree(&diff, repo, oldTree, newTree, &options),
                 String(localized: "Could not read that commit.")
             )
             defer { git_diff_free(diff) }
@@ -475,7 +486,13 @@ enum GitClient {
                 guard let reference, let raw = git_reference_shorthand(reference) else { continue }
                 let name = String(cString: raw)
                 let remote = type == GIT_BRANCH_REMOTE
-                listed.append(BranchInfo(name: name, isCurrent: !remote && name == current, isRemote: remote))
+                let target = git_reference_target(reference).map { format($0.pointee) }
+                listed.append(BranchInfo(
+                    name: name,
+                    isCurrent: !remote && name == current,
+                    isRemote: remote,
+                    target: target
+                ))
             }
             return listed.sorted { lhs, rhs in
                 if lhs.isCurrent != rhs.isCurrent { return lhs.isCurrent }
@@ -897,6 +914,10 @@ enum GitClient {
 
     static func host(of urlString: String) -> String? {
         URL(string: urlString)?.host?.lowercased()
+    }
+
+    static func summary(at repoURL: URL) -> RepoSummary? {
+        try? summarize(at: repoURL)
     }
 
     private static func summarize(at url: URL) throws -> RepoSummary {

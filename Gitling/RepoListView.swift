@@ -98,14 +98,16 @@ struct RepoListView: View {
                 }
             }
         } detail: {
-            if let selection, store.repos.contains(where: { $0.name == selection }) {
-                RepoDetailView(name: selection)
-            } else {
-                ContentUnavailableView(
-                    "Select a repository",
-                    systemImage: "folder",
-                    description: detailDescription
-                )
+            NavigationStack {
+                if let selection, store.repos.contains(where: { $0.name == selection }) {
+                    RepoDetailView(name: selection)
+                } else {
+                    ContentUnavailableView(
+                        "Select a repository",
+                        systemImage: "folder",
+                        description: detailDescription
+                    )
+                }
             }
         }
         .onChange(of: store.focusName) { _, name in
