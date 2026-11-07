@@ -3278,22 +3278,6 @@
         }
       }
     },
-    "Create a token with read_api, read_repository, and write_repository.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "创建一个具有 read_api、read_repository 和 write_repository 权限的令牌。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "read_api、read_repository、write_repository 権限のトークンを作成してください。"
-          }
-        }
-      }
-    },
     "Enter a valid HTTPS GitLab address.": {
       "localizations": {
         "zh-Hans": {
@@ -3402,6 +3386,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "GitLabトークン設定を開く"
+          }
+        }
+      }
+    },
+    "Create a token with read_api, read_user, read_repository, and write_repository.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建一个具有 read_api、read_user、read_repository 和 write_repository 权限的令牌。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "read_api、read_user、read_repository、write_repository 権限のトークンを作成してください。"
           }
         }
       }

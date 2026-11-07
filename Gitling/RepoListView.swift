@@ -628,7 +628,7 @@ private struct GitLabAccountSheet: View {
                 }
                 Section("Personal Access Token") {
                     SecureField("Personal Access Token", text: $token)
-                    Text("Create a token with read_api, read_repository, and write_repository.")
+                    Text("Create a token with read_api, read_user, read_repository, and write_repository.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let tokenSettingsURL {
@@ -668,7 +668,17 @@ private struct GitLabAccountSheet: View {
 
     private var tokenSettingsURL: URL? {
         guard let base = InstanceURL.canonical(baseURL) else { return nil }
-        return base.appendingPathComponent("-/user_settings/personal_access_tokens")
+        var components = URLComponents(
+            url: base.appendingPathComponent("-/user_settings/personal_access_tokens"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(
+                name: "scopes",
+                value: "read_api,read_user,read_repository,write_repository"
+            ),
+        ]
+        return components?.url
     }
 
     private func connect() {
