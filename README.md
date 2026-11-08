@@ -2,6 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
+[![Build IPA](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml/badge.svg)](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml)
+
 An open-source Git client for iPhone and iPad, built with SwiftUI and libgit2.
 
 > **Unofficial version**
@@ -65,6 +67,12 @@ Build an unsigned IPA:
 ```
 
 The output is `build/Gitling.ipa`. An unsigned IPA cannot be installed directly on a device.
+
+GitHub Actions also builds the unsigned IPA on every push to `main`, on pull
+requests, and on manual dispatch. Open the latest run on the
+[Actions page](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml)
+and download the `Gitling-unsigned-ipa` artifact. The artifact is unsigned; sign
+it with your own certificate and provisioning profile before installing it.
 
 If libgit2 is not already built, the script invokes `scripts/build-libgit2.sh`.
 You can also build it manually first:
