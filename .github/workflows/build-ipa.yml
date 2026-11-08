@@ -1,0 +1,48 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Check localizations
+        run: ./scripts/check-localizations.py
+
+      - name: Build IPA
+        run: ./scripts/build-ipa.sh
+
+      - name: Inspect IPA
+        run: |
+          ls -lh build/Gitling.ipa
+          unzip -l build/Gitling.ipa | sed -n '1,20p'
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gitling-unsigned-ipa
+          path: build/Gitling.ipa
+          if-no-files-found: error
+          retention-days: 30

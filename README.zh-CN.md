@@ -2,6 +2,8 @@
 
 [English](README.md) | 简体中文
 
+[![Build IPA](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml/badge.svg)](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml)
+
 一个面向 iPhone 和 iPad 的开源 Git 客户端，使用 SwiftUI + libgit2 实现。
 
 > **非官方版本**
@@ -58,6 +60,10 @@ open Gitling.xcodeproj
 ```
 
 产物在 `build/Gitling.ipa`。未签名包不能直接安装到真机。
+
+GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发时自动编译未签名 IPA。打开
+[Actions 页面](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml) 的最新运行，
+下载名为 `Gitling-unsigned-ipa` 的产物。该产物未签名，安装前需要用你自己的证书和描述文件签名。
 
 如果本机没有预编译的 libgit2，脚本会调用 `scripts/build-libgit2.sh`。也可以手动先构建：
 
