@@ -221,21 +221,22 @@ enum GitClient {
                 UInt32(GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_TIME.rawValue)
             )
             if allBranches {
+                // Include local branches and remote-tracking branches. The
+                // graph must show commits that only exist on origin/* too.
                 _ = git_revwalk_push_glob(walker, "refs/heads/*")
-            }
-            let pushed = git_revwalk_push_head(walker)
-            if !allBranches, matches(pushed, GIT_EUNBORNBRANCH) || matches(pushed, GIT_ENOTFOUND) {
-                return []
-            }
-            if !allBranches {
+                _ = git_revwalk_push_glob(walker, "refs/remotes/*")
+            } else {
+                let pushed = git_revwalk_push_head(walker)
+                if matches(pushed, GIT_EUNBORNBRANCH) || matches(pushed, GIT_ENOTFOUND) {
+                    return []
+                }
                 try check(pushed, String(localized: "Could not read history"))
-            } else if matches(pushed, GIT_EUNBORNBRANCH) || matches(pushed, GIT_ENOTFOUND) {
-                return []
             }
 
             var commits: [CommitInfo] = []
             var oid = git_oid()
-            while commits.count < limit, git_revwalk_next(&oid, walker) == 0 {
+            let cap = allBranches ? max(limit, 300) : limit
+            while commits.count < cap, git_revwalk_next(&oid, walker) == 0 {
                 var commit: OpaquePointer?
                 guard git_commit_lookup(&commit, repo, &oid) == 0, let commit else { continue }
                 defer { git_commit_free(commit) }

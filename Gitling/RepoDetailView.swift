@@ -19,7 +19,7 @@ struct RepoDetailView: View {
     @State private var loadError: String?
     @State private var linkedFolder: String?
     @State private var pickFolder = false
-    @State private var allBranches = false
+    @State private var allBranches = true
     @State private var branches: [BranchInfo] = []
     @State private var remotes: [RemoteInfo] = []
     @State private var sync: SyncCounts?
