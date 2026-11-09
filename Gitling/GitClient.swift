@@ -1,4 +1,5 @@
 import Clibgit2
+import CryptoKit
 import Foundation
 import LinkerConfigurator
 import Security
@@ -111,7 +112,16 @@ enum GitClient {
         }
     }
 
-    static func clone(url: String, name: String, root: URL, username: String, secret: String, worktreeBookmark: Data? = nil) throws {
+    static func clone(
+        url: String,
+        name: String,
+        root: URL,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial? = nil,
+        lfsAuth: LFSAuth? = nil,
+        worktreeBookmark: Data? = nil
+    ) throws {
         let destination = try destinationURL(name: name, root: root)
         try writing(destination) {
             var succeeded = false
@@ -121,7 +131,7 @@ enum GitClient {
                 }
             }
             try locked {
-            let box = CredentialBox(username: username, secret: secret)
+            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
             var options = git_clone_options()
             try check(
                 git_clone_options_init(&options, UInt32(GIT_CLONE_OPTIONS_VERSION)),
@@ -140,6 +150,7 @@ enum GitClient {
             }
             }
             succeeded = true
+            try LFSClient.smudge(at: destination, remoteURL: url, auth: lfsAuth)
         }
     }
 
@@ -273,7 +284,7 @@ enum GitClient {
         }
     }
 
-    static func stageAll(at repoURL: URL) throws {
+    static func stageAll(at repoURL: URL, lfsAuth: LFSAuth? = nil) throws {
         try writing(repoURL) {
         try locked {
             let opened = try open(repoURL)
@@ -283,6 +294,7 @@ enum GitClient {
             try check(git_repository_index(&index, repo), String(localized: "Could not stage files"))
             defer { git_index_free(index) }
             try check(git_index_add_all(index, nil, 0, nil, nil), String(localized: "Could not stage files"))
+            try applyLFSClean(repoURL: repoURL, repo: repo, index: index!, auth: lfsAuth)
             try check(git_index_write(index), String(localized: "Could not stage files"))
         }
         }
@@ -313,7 +325,13 @@ enum GitClient {
         }
     }
 
-    static func commit(at repoURL: URL, message: String, name: String, email: String) throws {
+    static func commit(
+        at repoURL: URL,
+        message: String,
+        name: String,
+        email: String,
+        lfsAuth: LFSAuth? = nil
+    ) throws {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             throw GitFailure.message(String(localized: "Enter a commit message."))
@@ -333,6 +351,7 @@ enum GitClient {
             var index: OpaquePointer?
             try check(git_repository_index(&index, repo), String(localized: "Could not commit"))
             defer { git_index_free(index) }
+            try applyLFSClean(repoURL: repoURL, repo: repo, index: index!, auth: lfsAuth)
             var tree = git_oid()
             try check(git_index_write_tree(&tree, index), String(localized: "Could not commit"))
             let parent = try headCommit(repo)
@@ -343,13 +362,21 @@ enum GitClient {
         }
     }
 
-    static func pull(at repoURL: URL, username: String, secret: String, name: String, email: String) throws {
+    static func pull(
+        at repoURL: URL,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial? = nil,
+        lfsAuth: LFSAuth? = nil,
+        name: String,
+        email: String
+    ) throws {
         try writing(repoURL) {
         try locked {
             let opened = try open(repoURL)
             defer { withExtendedLifetime(opened) {} }
             let repo = opened.repo
-            let upstream = try fetchUpstream(repo, username: username, secret: secret)
+            let upstream = try fetchUpstream(repo, username: username, secret: secret, sshKey: sshKey)
             defer { git_reference_free(upstream) }
             var annotated: OpaquePointer?
             try check(
@@ -372,10 +399,17 @@ enum GitClient {
             }
             throw GitFailure.message(String(localized: "Could not pull"))
         }
+        try LFSClient.smudge(at: repoURL, remoteURL: try originURL(repoURL), auth: lfsAuth)
         }
     }
 
-    static func push(at repoURL: URL, username: String, secret: String) throws {
+    static func push(
+        at repoURL: URL,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial? = nil,
+        lfsAuth: LFSAuth? = nil
+    ) throws {
         try writing(repoURL) {
         try locked {
             let handle = try open(repoURL)
@@ -389,7 +423,7 @@ enum GitClient {
             }
             defer { git_remote_free(remote) }
 
-            let box = CredentialBox(username: username, secret: secret)
+            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
             var options = git_push_options()
             try check(git_push_options_init(&options, UInt32(GIT_PUSH_OPTIONS_VERSION)), String(localized: "Could not push"))
             applyTransport(&options.callbacks, box: box)
@@ -408,12 +442,18 @@ enum GitClient {
         }
     }
 
-    static func fetch(at repoURL: URL, username: String, secret: String) throws {
+    static func fetch(
+        at repoURL: URL,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial? = nil,
+        lfsAuth: LFSAuth? = nil
+    ) throws {
         try writing(repoURL) {
             try locked {
                 let opened = try open(repoURL)
                 defer { withExtendedLifetime(opened) {} }
-                try fetchOrigin(opened.repo, username: username, secret: secret)
+                try fetchOrigin(opened.repo, username: username, secret: secret, sshKey: sshKey)
             }
         }
     }
@@ -912,8 +952,22 @@ enum GitClient {
         return text
     }
 
+    private static func originURL(_ repoURL: URL) throws -> String {
+        try locked {
+            let opened = try open(repoURL)
+            defer { withExtendedLifetime(opened) {} }
+            var remote: OpaquePointer?
+            if git_remote_lookup(&remote, opened.repo, "origin") == 0, let remote {
+                defer { git_remote_free(remote) }
+                if let url = git_remote_url(remote) { return String(cString: url) }
+            }
+            throw GitFailure.message(String(localized: "This repository has no origin remote."))
+        }
+    }
+
     static func host(of urlString: String) -> String? {
-        URL(string: urlString)?.host?.lowercased()
+        if let host = URL(string: urlString)?.host { return host.lowercased() }
+        return SSHURL.host(urlString)
     }
 
     static func summary(at repoURL: URL) -> RepoSummary? {
@@ -1036,13 +1090,18 @@ enum GitClient {
         return left == right
     }
 
-    private static func fetchOrigin(_ repo: OpaquePointer, username: String, secret: String) throws {
+    private static func fetchOrigin(
+        _ repo: OpaquePointer,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial?
+    ) throws {
         var remote: OpaquePointer?
         if git_remote_lookup(&remote, repo, "origin") < 0 {
             throw GitFailure.message(String(localized: "This repository has no origin remote."))
         }
         defer { git_remote_free(remote) }
-        let box = CredentialBox(username: username, secret: secret)
+        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
         var fetch = git_fetch_options()
         try check(git_fetch_options_init(&fetch, UInt32(GIT_FETCH_OPTIONS_VERSION)), String(localized: "Could not pull"))
         applyTransport(&fetch.callbacks, box: box)
@@ -1138,6 +1197,40 @@ enum GitClient {
         git_config_set_bool(config, "core.filemode", 0)
     }
 
+    private static func applyLFSClean(
+        repoURL: URL,
+        repo: OpaquePointer,
+        index: OpaquePointer,
+        auth: LFSAuth?
+    ) throws {
+        guard let remote = originURLUnlocked(repo) else { return }
+        let pointers = try LFSClient.clean(at: repoURL, remoteURL: remote, auth: auth)
+        guard !pointers.isEmpty else { return }
+        for (path, pointer) in pointers {
+            let code = path.withCString { pathPointer -> Int32 in
+                var entry = git_index_entry()
+                entry.mode = 0o100644
+                entry.path = pathPointer
+                return pointer.raw.withCString { buffer in
+                    git_index_add_from_buffer(
+                        index,
+                        &entry,
+                        buffer,
+                        pointer.raw.utf8.count
+                    )
+                }
+            }
+            try check(code, String(localized: "Could not stage Git LFS files."))
+        }
+    }
+
+    private static func originURLUnlocked(_ repo: OpaquePointer) -> String? {
+        var remote: OpaquePointer?
+        guard git_remote_lookup(&remote, repo, "origin") == 0, let remote else { return nil }
+        defer { git_remote_free(remote) }
+        return git_remote_url(remote).map { String(cString: $0) }
+    }
+
     private static func statusUnlocked(_ repo: OpaquePointer) throws -> [StatusEntry] {
         var options = git_status_options()
         try check(git_status_options_init(&options, UInt32(GIT_STATUS_OPTIONS_VERSION)), String(localized: "Could not read status"))
@@ -1170,6 +1263,19 @@ enum GitClient {
                 unstaged: status & workMask != 0,
                 untracked: status & GIT_STATUS_WT_NEW.rawValue != 0
             ))
+        }
+        let workdir = git_repository_workdir(repo).map { URL(fileURLWithPath: String(cString: $0)) }
+        if let workdir {
+            let lfsClean = LFSClient.cleanPaths(at: workdir)
+            if !lfsClean.isEmpty {
+                return entries.map { entry in
+                    var entry = entry
+                    if lfsClean.contains(entry.path) {
+                        entry.unstaged = false
+                    }
+                    return entry
+                }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            }
         }
         return entries.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
@@ -1273,13 +1379,18 @@ enum GitClient {
         )
     }
 
-    private static func fetchUpstream(_ repo: OpaquePointer, username: String, secret: String) throws -> OpaquePointer? {
+    private static func fetchUpstream(
+        _ repo: OpaquePointer,
+        username: String,
+        secret: String,
+        sshKey: SSHKeyMaterial?
+    ) throws -> OpaquePointer? {
         var remote: OpaquePointer?
         if git_remote_lookup(&remote, repo, "origin") < 0 {
             throw GitFailure.message(String(localized: "This repository has no origin remote."))
         }
         defer { git_remote_free(remote) }
-        let box = CredentialBox(username: username, secret: secret)
+        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
         var fetch = git_fetch_options()
         try check(git_fetch_options_init(&fetch, UInt32(GIT_FETCH_OPTIONS_VERSION)), String(localized: "Could not pull"))
         applyTransport(&fetch.callbacks, box: box)
@@ -1489,21 +1600,57 @@ enum GitClient {
 private final class CredentialBox {
     let username: String
     let secret: String
-    init(username: String, secret: String) {
+    let sshKey: SSHKeyMaterial?
+
+    init(username: String, secret: String, sshKey: SSHKeyMaterial? = nil) {
         self.username = username
         self.secret = secret
+        self.sshKey = sshKey
     }
 }
 
-private let acquireCredentials: git_credential_acquire_cb = { credential, _, usernameFromURL, _, payload in
+private let acquireCredentials: git_credential_acquire_cb = { credential, _, usernameFromURL, allowedTypes, payload in
     guard let credential, let payload else { return -1 }
     let box = Unmanaged<CredentialBox>.fromOpaque(payload).takeUnretainedValue()
+    let usernameFromURL = usernameFromURL.map { String(cString: $0) } ?? ""
+    let user = box.username.isEmpty ? usernameFromURL : box.username
+
+    if allowedTypes & UInt32(GIT_CREDENTIAL_USERNAME.rawValue) != 0,
+       box.sshKey != nil,
+       allowedTypes & UInt32(GIT_CREDENTIAL_SSH_KEY.rawValue) == 0 {
+        return user.withCString { git_credential_username_new(credential, $0) }
+    }
+
+    if allowedTypes & UInt32(GIT_CREDENTIAL_SSH_KEY.rawValue) != 0,
+       let key = box.sshKey {
+        let sshUser = user.isEmpty ? "git" : user
+        return sshUser.withCString { userPointer in
+            key.privateKey.withCString { privatePointer in
+                if let passphrase = key.passphrase, !passphrase.isEmpty {
+                    return passphrase.withCString { passPointer in
+                        git_credential_ssh_key_memory_new(
+                            credential,
+                            userPointer,
+                            nil,
+                            privatePointer,
+                            passPointer
+                        )
+                    }
+                }
+                return git_credential_ssh_key_memory_new(
+                    credential,
+                    userPointer,
+                    nil,
+                    privatePointer,
+                    nil
+                )
+            }
+        }
+    }
+
     if box.username.isEmpty && box.secret.isEmpty {
         return GIT_PASSTHROUGH.rawValue
     }
-    let user = box.username.isEmpty
-        ? (usernameFromURL.map { String(cString: $0) } ?? "")
-        : box.username
     return git_credential_userpass_plaintext_new(credential, user, box.secret)
 }
 
@@ -1513,17 +1660,47 @@ private let checkServerCertificate: @convention(c) (
     UnsafePointer<CChar>?,
     UnsafeMutableRawPointer?
 ) -> Int32 = { certificate, valid, host, _ in
-    if valid != 0 { return 0 }
     guard let certificate, let host else { return -1 }
+    let hostname = String(cString: host)
+
+    if certificate.pointee.cert_type == GIT_CERT_HOSTKEY_LIBSSH2 {
+        let hostKey = UnsafeMutableRawPointer(certificate).assumingMemoryBound(to: git_cert_hostkey.self).pointee
+        let digest: Data
+        if hostKey.type.rawValue & UInt32(GIT_CERT_SSH_SHA256.rawValue) != 0 {
+            digest = withUnsafeBytes(of: hostKey.hash_sha256) { Data($0) }
+        } else if hostKey.type.rawValue & UInt32(GIT_CERT_SSH_RAW.rawValue) != 0,
+                  let raw = hostKey.hostkey {
+            digest = Data(SHA256.hash(data: Data(bytes: raw, count: hostKey.hostkey_len)))
+        } else {
+            return -1
+        }
+        return trustSSHHost(host: hostname, fingerprint: digest.base64EncodedString()) ? 0 : -1
+    }
+
+    if valid != 0 { return 0 }
     guard certificate.pointee.cert_type == GIT_CERT_X509 else { return -1 }
     let x509 = UnsafeMutableRawPointer(certificate).assumingMemoryBound(to: git_cert_x509.self)
     guard let bytes = x509.pointee.data else { return -1 }
     let data = Data(bytes: bytes, count: x509.pointee.len)
     guard let der = SecCertificateCreateWithData(nil, data as CFData) else { return -1 }
     var trust: SecTrust?
-    let policy = SecPolicyCreateSSL(true, String(cString: host) as CFString)
+    let policy = SecPolicyCreateSSL(true, hostname as CFString)
     guard SecTrustCreateWithCertificates([der] as CFArray, policy, &trust) == errSecSuccess, let trust else {
         return -1
     }
     return SecTrustEvaluateWithError(trust, nil) ? 0 : -1
+}
+
+/// Trust on first use. A changed host key is rejected, which protects later
+/// connections from a swapped key even though there is no prompt in the
+/// synchronous libgit2 callback.
+private func trustSSHHost(host: String, fingerprint: String) -> Bool {
+    let key = "gitling.knownHosts.v1"
+    var known = UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+    if let existing = known[host] {
+        return existing == fingerprint
+    }
+    known[host] = fingerprint
+    UserDefaults.standard.set(known, forKey: key)
+    return true
 }

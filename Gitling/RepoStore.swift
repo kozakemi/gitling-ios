@@ -13,6 +13,7 @@ final class RepoStore: ObservableObject {
     @Published var githubPrompt: GitHubPrompt?
     @Published var githubMessage: String?
     @Published private(set) var accounts: [RemoteAccount] = []
+    @Published private(set) var sshKeys: [SSHKey] = []
     @Published var remoteProjects: [RemoteProject] = []
     @Published var remoteProjectsMessage: String?
     @Published var isLoadingRemoteProjects = false
@@ -39,6 +40,7 @@ final class RepoStore: ObservableObject {
         userName = UserDefaults.standard.string(forKey: Keys.name) ?? ""
         userEmail = UserDefaults.standard.string(forKey: Keys.email) ?? ""
         loadAccounts()
+        loadSSHKeys()
         Task { await reload() }
     }
 
@@ -139,6 +141,9 @@ final class RepoStore: ObservableObject {
         var links = repoAccountLinks()
         links.removeValue(forKey: repoName)
         UserDefaults.standard.set(links, forKey: Keys.repoAccounts)
+        var sshLinks = repoSSHKeyLinks()
+        sshLinks.removeValue(forKey: repoName)
+        UserDefaults.standard.set(sshLinks, forKey: Keys.repoSSHKeys)
     }
 
     func account(for urlString: String, repoName: String? = nil) -> RemoteAccount? {
@@ -171,6 +176,81 @@ final class RepoStore: ObservableObject {
             throw GitLabClientError.invalidResponse
         }
         return account
+    }
+
+    // MARK: SSH keys
+
+    func sshKey(id: UUID?) -> SSHKey? {
+        guard let id else { return nil }
+        return sshKeys.first { $0.id == id }
+    }
+
+    @discardableResult
+    func addSSHKey(name: String, privateKey: String, passphrase: String?) -> SSHKey? {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedKey = privateKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedKey.isEmpty else { return nil }
+        let key = SSHKey(id: UUID(), name: trimmedName, createdAt: Date())
+        KeychainStore.saveSSHKey(trimmedKey, id: key.id)
+        KeychainStore.saveSSHPassphrase(passphrase, id: key.id)
+        sshKeys.append(key)
+        saveSSHKeys()
+        revision += 1
+        return key
+    }
+
+    func removeSSHKey(_ key: SSHKey) {
+        KeychainStore.deleteSSHKey(id: key.id)
+        sshKeys.removeAll { $0.id == key.id }
+        var links = repoSSHKeyLinks()
+        links = links.filter { $0.value != key.id.uuidString }
+        UserDefaults.standard.set(links, forKey: Keys.repoSSHKeys)
+        saveSSHKeys()
+        revision += 1
+    }
+
+    func linkedSSHKeyID(for repoName: String) -> UUID? {
+        repoSSHKeyLinks()[repoName].flatMap(UUID.init(uuidString:))
+    }
+
+    func linkRepoSSHKey(_ repoName: String, to key: SSHKey) {
+        var links = repoSSHKeyLinks()
+        links[repoName] = key.id.uuidString
+        UserDefaults.standard.set(links, forKey: Keys.repoSSHKeys)
+    }
+
+    func sshKeyMaterial(for id: UUID?) -> SSHKeyMaterial? {
+        guard let id,
+              let privateKey = KeychainStore.loadSSHKey(id: id),
+              !privateKey.isEmpty else { return nil }
+        return SSHKeyMaterial(
+            privateKey: privateKey,
+            passphrase: KeychainStore.loadSSHPassphrase(id: id)
+        )
+    }
+
+    private func sshKeyMaterial(for urlString: String, repoName: String) -> SSHKeyMaterial? {
+        guard SSHURL.isSSH(urlString) else { return nil }
+        if let id = linkedSSHKeyID(for: repoName) {
+            return sshKeyMaterial(for: id)
+        }
+        return nil
+    }
+
+    private func lfsAuth(for urlString: String, repoName: String) -> LFSAuth? {
+        let matched: RemoteAccount?
+        if SSHURL.isSSH(urlString) {
+            let host = SSHURL.host(urlString)
+            matched = accounts.first { $0.instanceURL?.host?.lowercased() == host }
+        } else {
+            matched = account(for: urlString, repoName: repoName)
+        }
+        guard let matched, let token = secret(for: matched), !token.isEmpty else { return nil }
+        return LFSAuth(
+            username: matched.provider == .gitlab ? "oauth2" : matched.username,
+            secret: token,
+            instanceBaseURL: URL(string: matched.baseURL)
+        )
     }
 
     // MARK: Remote projects
@@ -239,6 +319,20 @@ final class RepoStore: ObservableObject {
     private func repoAccountLinks() -> [String: String] {
         UserDefaults.standard.dictionary(forKey: Keys.repoAccounts) as? [String: String] ?? [:]
     }
+    private func repoSSHKeyLinks() -> [String: String] {
+        UserDefaults.standard.dictionary(forKey: Keys.repoSSHKeys) as? [String: String] ?? [:]
+    }
+
+    private func loadSSHKeys() {
+        guard let data = UserDefaults.standard.data(forKey: Keys.sshKeys),
+              let decoded = try? JSONDecoder().decode([SSHKey].self, from: data) else { return }
+        sshKeys = decoded
+    }
+
+    private func saveSSHKeys() {
+        guard let data = try? JSONEncoder().encode(sshKeys) else { return }
+        UserDefaults.standard.set(data, forKey: Keys.sshKeys)
+    }
 
     private func loadAccounts() {
         if let data = UserDefaults.standard.data(forKey: Keys.accounts),
@@ -276,16 +370,20 @@ final class RepoStore: ObservableObject {
         username: String,
         secret: String,
         accountID: UUID? = nil,
+        sshKeyID: UUID? = nil,
         worktreeBookmark: Data? = nil
     ) {
         let root = root
         let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard url.lowercased().hasPrefix("https://") else {
-            alert = String(localized: "The demo only clones HTTPS repositories.")
+        guard url.lowercased().hasPrefix("https://") || SSHURL.isSSH(url) else {
+            alert = String(localized: "Only HTTPS and SSH repositories are supported.")
             return
         }
         let chosen = account(id: accountID)
+        let chosenSSHKey = sshKey(id: sshKeyID)
+        let sshMaterial = sshKeyMaterial(for: sshKeyID)
+        let lfs = lfsAuth(for: url, repoName: name)
         let creds = credentials(
             for: chosen,
             urlString: url,
@@ -293,13 +391,15 @@ final class RepoStore: ObservableObject {
             username: username,
             secret: secret
         )
-        run(String(localized: "Cloning…"), focus: name, linkAccount: chosen) {
+        run(String(localized: "Cloning…"), focus: name, linkAccount: chosen, linkSSHKey: chosenSSHKey) {
             try GitClient.clone(
                 url: url,
                 name: name,
                 root: root,
                 username: creds.username,
                 secret: creds.secret,
+                sshKey: sshMaterial,
+                lfsAuth: lfs,
                 worktreeBookmark: worktreeBookmark
             )
             if chosen == nil, let host = GitClient.host(of: url), !secret.isEmpty {
@@ -436,7 +536,9 @@ final class RepoStore: ObservableObject {
 
     func stageAll(name: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) { try GitClient.stageAll(at: url) }
+        let origin = GitClient.summary(at: url)?.origin
+        let lfs = lfsAuth(for: origin ?? "", repoName: name)
+        run(String(localized: "Working…")) { try GitClient.stageAll(at: url, lfsAuth: lfs) }
     }
 
     func unstageAll(name: String) {
@@ -448,8 +550,10 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
+        let origin = GitClient.summary(at: url)?.origin
+        let lfs = lfsAuth(for: origin ?? "", repoName: name)
         run(String(localized: "Committing…")) {
-            try GitClient.commit(at: url, message: message, name: userName, email: userEmail)
+            try GitClient.commit(at: url, message: message, name: userName, email: userEmail, lfsAuth: lfs)
         }
     }
 
@@ -457,15 +561,21 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
+        let origin = GitClient.summary(at: url)?.origin
+        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
+        let lfs = lfsAuth(for: origin ?? "", repoName: name)
         run(String(localized: "Pulling…")) {
-            try GitClient.pull(at: url, username: username, secret: secret, name: userName, email: userEmail)
+            try GitClient.pull(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs, name: userName, email: userEmail)
         }
     }
 
     func fetch(name: String, username: String, secret: String) {
         let url = repoURL(name)
+        let origin = GitClient.summary(at: url)?.origin
+        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
+        let lfs = lfsAuth(for: origin ?? "", repoName: name)
         run(String(localized: "Fetching…")) {
-            try GitClient.fetch(at: url, username: username, secret: secret)
+            try GitClient.fetch(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs)
         }
     }
 
@@ -540,8 +650,11 @@ final class RepoStore: ObservableObject {
 
     func push(name: String, username: String, secret: String) {
         let url = repoURL(name)
+        let origin = GitClient.summary(at: url)?.origin
+        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
+        let lfs = lfsAuth(for: origin ?? "", repoName: name)
         run(String(localized: "Pushing…")) {
-            try GitClient.push(at: url, username: username, secret: secret)
+            try GitClient.push(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs)
         }
     }
 
@@ -553,6 +666,7 @@ final class RepoStore: ObservableObject {
         _ label: String,
         focus: String? = nil,
         linkAccount: RemoteAccount? = nil,
+        linkSSHKey: SSHKey? = nil,
         _ work: @escaping @Sendable () throws -> Void
     ) {
         guard !isBusy else { return }
@@ -561,14 +675,19 @@ final class RepoStore: ObservableObject {
         Task.detached {
             do {
                 try work()
-                await self.finish(nil, focus: focus, linkAccount: linkAccount)
+                await self.finish(nil, focus: focus, linkAccount: linkAccount, linkSSHKey: linkSSHKey)
             } catch {
                 await self.finish(error.localizedDescription)
             }
         }
     }
 
-    private func finish(_ error: String?, focus: String? = nil, linkAccount: RemoteAccount? = nil) async {
+    private func finish(
+        _ error: String?,
+        focus: String? = nil,
+        linkAccount: RemoteAccount? = nil,
+        linkSSHKey: SSHKey? = nil
+    ) async {
         isBusy = false
         statusLine = ""
         if let error {
@@ -577,6 +696,9 @@ final class RepoStore: ObservableObject {
             focusName = focus
             if let focus, let linkAccount {
                 linkRepo(focus, to: linkAccount)
+            }
+            if let focus, let linkSSHKey {
+                linkRepoSSHKey(focus, to: linkSSHKey)
             }
         }
         revision += 1
@@ -592,5 +714,7 @@ final class RepoStore: ObservableObject {
         static let email = "gitling.userEmail"
         static let accounts = "gitling.accounts.v1"
         static let repoAccounts = "gitling.repoAccounts.v1"
+        static let sshKeys = "gitling.sshKeys.v1"
+        static let repoSSHKeys = "gitling.repoSSHKeys.v1"
     }
 }

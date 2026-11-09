@@ -1,6 +1,7 @@
 #!/bin/sh
 # Builds a static libgit2 xcframework for iOS 18+ (device and simulator).
-# HTTPS uses SecureTransport, so the download is only the libgit2 source.
+# HTTPS uses SecureTransport. SSH uses the prebuilt libssh2/OpenSSL
+# libraries in Vendor/libssh2, so the download is only the libgit2 source.
 # If GitHub is blocked:
 #   all_proxy=http://127.0.0.1:10911 ./scripts/build-libgit2.sh
 set -eu
@@ -39,6 +40,11 @@ build_one() {
   sdk="$1"
   sysroot="$(xcrun --sdk "$sdk" --show-sdk-path)"
   prefix="$work/$sdk"
+  if [ "$sdk" = "iphoneos" ]; then
+    ssh_dir="$root/Vendor/libssh2/ios-arm64"
+  else
+    ssh_dir="$root/Vendor/libssh2/ios-arm64-simulator"
+  fi
   rm -rf "$prefix"
   mkdir -p "$prefix"
   cmake -S "$src" -B "$prefix/cmake" \
@@ -55,13 +61,21 @@ build_one() {
     -DBUILD_TESTS=OFF \
     -DBUILD_CLI=OFF \
     -DBUILD_EXAMPLES=OFF \
-    -DUSE_SSH=OFF \
+    -DUSE_SSH=ON \
+    -DLIBSSH2_INCLUDE_DIR="$ssh_dir/include" \
+    -DLIBSSH2_LIBRARY="$ssh_dir/lib/libssh2.a" \
     -DUSE_HTTPS=SecureTransport \
     -DUSE_HTTP_PARSER=builtin \
     -DREGEX_BACKEND=builtin \
     -DUSE_BUNDLED_ZLIB=OFF
   cmake --build "$prefix/cmake" --parallel
   cmake --install "$prefix/cmake"
+  # libgit2's SSH transport calls libssh2. Fold the static libssh2/OpenSSL
+  # archive into libgit2.a so the app only needs one Clibgit2 module.
+  libtool -static -o "$prefix/install/lib/libgit2-combined.a" \
+    "$prefix/install/lib/libgit2.a" \
+    "$ssh_dir/lib/libssh2.a"
+  mv "$prefix/install/lib/libgit2-combined.a" "$prefix/install/lib/libgit2.a"
   cat > "$prefix/install/include/module.modulemap" <<'EOF'
 module Clibgit2 {
     header "git2.h"

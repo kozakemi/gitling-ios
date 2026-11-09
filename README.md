@@ -30,6 +30,9 @@ so other editors can modify files.
 - Link an external folder from the Files app as the working tree
 - GitHub Device Flow sign-in
 - GitLab.com and self-hosted GitLab, with multiple accounts per platform
+- HTTPS and SSH transports; import an existing SSH private key and link it to a clone
+- SSH host keys use trust-on-first-use and reject a changed key
+- Git LFS pointer download and checkout, plus clean/upload of LFS-tracked files
 - Personal Access Tokens stored in the Keychain, never in `.git/config`
 - New repositories default to local initialization; when cloning, choose an account
   first and only then load that account's remote repositories
@@ -49,7 +52,7 @@ so other editors can modify files.
 - iOS 18.0 or later
 - Xcode 26 / 27
 - Swift 5
-- libgit2 1.8.4 (a static xcframework and build script are included)
+- libgit2 1.8.4 and libssh2/OpenSSL (static, prebuilt libraries are included)
 - No CocoaPods or external Swift Package downloads required
 
 ## Build
@@ -100,11 +103,12 @@ Localization coverage check:
 ## Project layout
 
 ```text
-Gitling/                 iOS app, UI, accounts, GitHub/GitLab clients
+Gitling/                 iOS app, UI, accounts, SSH/LFS, GitHub/GitLab clients
 GitlingFileProvider/     Files app File Provider extension
 Shared/                  Repository storage, worktree, write lock, File Provider sharing
 GitlingTests/            XCTest unit tests
 Vendor/static-libgit2/   libgit2 static xcframework and local Swift Package
+Vendor/libssh2/          Prebuilt libssh2/OpenSSL static libraries and licenses
 scripts/                 Build, IPA, and localization scripts
 docs/                    Screenshots
 ```
@@ -124,8 +128,10 @@ docs/                    Screenshots
 
 ## Known limitations
 
-- SSH transport is currently disabled; HTTPS works.
-- Git LFS, interactive rebase, and custom merge drivers are not supported.
+- SSH keys are imported, not generated or exported. The passphrase is stored in the Keychain.
+- SSH host keys use trust-on-first-use. A changed host key is rejected; there is no known-hosts management UI yet.
+- Git LFS supports pointer download/checkout and clean/upload for LFS-tracked files. LFS lock commands and a dedicated progress UI are not implemented.
+- Interactive rebase and custom merge drivers are not supported.
 - Commit diffs treat files larger than 256 KB as binary to keep the UI responsive.
 - GPLv3 and App Store distribution terms have known compatibility disputes. If you
   plan to publish on the App Store, complete a license audit and consider dual
@@ -138,6 +144,12 @@ docs/                    Screenshots
 This project was developed with **Grok** and **DeepSeek** as AI coding assistants
 for code generation, refactoring suggestions, tests, and documentation. All commits
 are reviewed by the maintainer before they are merged.
+
+## Third-party licenses
+
+- [libgit2](https://libgit2.org/) — GPL-2.0 with Linking Exception
+- [libssh2](https://www.libssh2.org/) — BSD-3-Clause; see `Vendor/libssh2/LICENSE-libssh2`
+- [OpenSSL](https://www.openssl.org/) — Apache-2.0; see `Vendor/libssh2/LICENSE-OpenSSL`
 
 ## License
 
