@@ -3869,6 +3869,38 @@
           }
         }
       }
+    },
+    "Checkout": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检出"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チェックアウト"
+          }
+        }
+      }
+    },
+    "Checkout as Local": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检出为本地分支"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカルブランチとしてチェックアウト"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -24,6 +24,7 @@ so other editors can modify files.
 - Commit, stage, unstage, fetch, pull, and push
 - Browse commit history, branch graphs, and commit diffs
 - Use a dropdown branch picker for long branch lists, with all local and remote-tracking branches available
+- Checkout a selected local branch, or create a local tracking branch from a remote branch
 - Colorized commit diffs: additions in green, deletions in red, hunk headers in blue,
   file headers in gray
 - Chinese, English, and Japanese interfaces

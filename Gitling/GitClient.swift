@@ -611,6 +611,60 @@ enum GitClient {
         }
     }
 
+    @discardableResult
+    static func checkoutRemote(at repoURL: URL, branch remoteBranch: String) throws -> String {
+        var localResult = ""
+        try writing(repoURL) {
+            try locked {
+                let opened = try open(repoURL)
+                defer { withExtendedLifetime(opened) {} }
+                let repo = opened.repo
+                let parts = remoteBranch.split(separator: "/", maxSplits: 1)
+                guard parts.count == 2, !parts[1].isEmpty else {
+                    throw GitFailure.message(String(localized: "Could not switch to that branch."))
+                }
+                let localName = String(parts[1])
+
+                var existing: OpaquePointer?
+                if git_branch_lookup(&existing, repo, localName, GIT_BRANCH_LOCAL) == 0 {
+                    git_reference_free(existing)
+                    try checkoutLocal(repo, branch: localName)
+                    localResult = localName
+                    return
+                }
+
+                var remoteRef: OpaquePointer?
+                try check(
+                    git_branch_lookup(&remoteRef, repo, remoteBranch, GIT_BRANCH_REMOTE),
+                    String(localized: "Could not switch to that branch.")
+                )
+                defer { git_reference_free(remoteRef) }
+                guard let target = git_reference_target(remoteRef) else {
+                    throw GitFailure.message(String(localized: "Could not switch to that branch."))
+                }
+                var oid = target.pointee
+                var commit: OpaquePointer?
+                try check(
+                    git_commit_lookup(&commit, repo, &oid),
+                    String(localized: "Could not switch to that branch.")
+                )
+                defer { git_commit_free(commit) }
+                var localRef: OpaquePointer?
+                try check(
+                    git_branch_create(&localRef, repo, localName, commit, 0),
+                    String(localized: "Could not switch to that branch.")
+                )
+                if let localRef {
+                    git_branch_set_upstream(localRef, remoteBranch)
+                    git_reference_free(localRef)
+                }
+                try checkoutLocal(repo, branch: localName)
+                localResult = localName
+            }
+        }
+        return localResult
+    }
+
     static func mergeBranch(at repoURL: URL, branch: String, name: String, email: String) throws {
         try writing(repoURL) {
             try locked {
