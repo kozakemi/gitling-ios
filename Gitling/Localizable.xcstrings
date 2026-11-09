@@ -3837,6 +3837,22 @@
           }
         }
       }
+    },
+    "Remote branches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "远程分支"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リモートブランチ"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

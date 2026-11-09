@@ -150,6 +150,20 @@ struct RepoDetailView: View {
                             }
                             .disabled(item.isCurrent || store.isBusy)
                         }
+                        if allBranches {
+                            let remoteBranches = branches.filter {
+                                $0.isRemote && !$0.name.hasSuffix("/HEAD")
+                            }
+                            if !remoteBranches.isEmpty {
+                                Text("Remote branches")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ForEach(remoteBranches) { item in
+                                    Label(item.name, systemImage: "cloud")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     }
                     Section {
                         ForEach(rows) { row in
