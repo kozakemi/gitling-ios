@@ -678,6 +678,9 @@ private struct GitLabAccountSheet: View {
                     Text("Use the instance root, for example https://gitlab.example.com or https://gitlab.com.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Text("HTTP sends tokens in clear text. Use it only on a trusted network.")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
                     TextField("Display Name (optional)", text: $displayName)
                         .textInputAutocapitalization(.words)
                 }

@@ -3406,22 +3406,6 @@
         }
       }
     },
-    "Only HTTPS and SSH repositories are supported.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "只支持 HTTPS 和 SSH 仓库。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "HTTPSとSSHのリポジトリのみ対応しています。"
-          }
-        }
-      }
-    },
     "SSH Keys": {
       "localizations": {
         "zh-Hans": {
@@ -3818,6 +3802,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Git LFSファイルをステージできませんでした。"
+          }
+        }
+      }
+    },
+    "Only HTTP, HTTPS, and SSH repositories are supported.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只支持 HTTP、HTTPS 和 SSH 仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP、HTTPS、SSHのリポジトリのみ対応しています。"
+          }
+        }
+      }
+    },
+    "HTTP sends tokens in clear text. Use it only on a trusted network.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP 会明文传输令牌，只应在可信网络中使用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTPではトークンが平文で送信されます。信頼できるネットワークでのみ使用してください。"
           }
         }
       }

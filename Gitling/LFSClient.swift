@@ -241,6 +241,7 @@ enum LFSClient {
         if let url = URL(string: remote), let parsedHost = url.host {
             host = parsedHost
             path = url.path
+            scheme = url.scheme?.lowercased() ?? "https"
             if let parsedPort = url.port { port = parsedPort }
         } else if let at = remote.firstIndex(of: "@") {
             let rest = remote[remote.index(after: at)...]
@@ -255,10 +256,15 @@ enum LFSClient {
 
         if let base = instanceBaseURL, base.host?.lowercased() == host.lowercased() {
             host = base.host ?? host
-            scheme = base.scheme ?? "https"
-            port = base.port
-        } else if remote.hasPrefix("ssh://") {
-            // A custom SSH port is not an HTTPS port. Prefer the default HTTPS
+            if remote.lowercased().hasPrefix("ssh://") || (!remote.lowercased().hasPrefix("http://") && !remote.lowercased().hasPrefix("https://")) {
+                // SSH URLs need the account's HTTPS/HTTP endpoint and port.
+                scheme = base.scheme ?? "https"
+                port = base.port
+            } else if port == nil {
+                port = base.port
+            }
+        } else if remote.lowercased().hasPrefix("ssh://") {
+            // A custom SSH port is not an HTTP port. Prefer the default HTTPS
             // port unless an account supplied the instance URL.
             port = nil
         }

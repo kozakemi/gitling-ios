@@ -30,7 +30,7 @@ so other editors can modify files.
 - Link an external folder from the Files app as the working tree
 - GitHub Device Flow sign-in
 - GitLab.com and self-hosted GitLab, with multiple accounts per platform
-- HTTPS and SSH transports; import an existing SSH private key and link it to a clone
+- HTTP, HTTPS, and SSH transports; import an existing SSH private key and link it to a clone
 - SSH host keys use trust-on-first-use and reject a changed key
 - Git LFS pointer download and checkout, plus clean/upload of LFS-tracked files
 - Personal Access Tokens stored in the Keychain, never in `.git/config`
@@ -131,6 +131,7 @@ docs/                    Screenshots
 - SSH keys are imported, not generated or exported. The passphrase is stored in the Keychain.
 - SSH host keys use trust-on-first-use. A changed host key is rejected; there is no known-hosts management UI yet.
 - Git LFS supports pointer download/checkout and clean/upload for LFS-tracked files. LFS lock commands and a dedicated progress UI are not implemented.
+- HTTP is supported for compatibility with local or legacy servers. It sends credentials and data in clear text; use HTTPS whenever possible.
 - Interactive rebase and custom merge drivers are not supported.
 - Commit diffs treat files larger than 256 KB as binary to keep the UI responsive.
 - GPLv3 and App Store distribution terms have known compatibility disputes. If you

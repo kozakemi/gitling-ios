@@ -376,8 +376,8 @@ final class RepoStore: ObservableObject {
         let root = root
         let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard url.lowercased().hasPrefix("https://") || SSHURL.isSSH(url) else {
-            alert = String(localized: "Only HTTPS and SSH repositories are supported.")
+        guard GitRemoteURL.isSupported(url) else {
+            alert = String(localized: "Only HTTP, HTTPS, and SSH repositories are supported.")
             return
         }
         let chosen = account(id: accountID)
