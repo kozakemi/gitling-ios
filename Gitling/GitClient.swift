@@ -221,10 +221,25 @@ enum GitClient {
                 UInt32(GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_TIME.rawValue)
             )
             if allBranches {
-                // Include local branches and remote-tracking branches. The
-                // graph must show commits that only exist on origin/* too.
-                _ = git_revwalk_push_glob(walker, "refs/heads/*")
-                _ = git_revwalk_push_glob(walker, "refs/remotes/*")
+                // Include local branches and remote-tracking branches. Push
+                // each ref explicitly: globs do not reliably cross the slash
+                // in refs/remotes/origin/feature or branch names with slashes.
+                var iterator: OpaquePointer?
+                if git_branch_iterator_new(&iterator, repo, GIT_BRANCH_ALL) == 0,
+                   let iterator {
+                    defer { git_branch_iterator_free(iterator) }
+                    while true {
+                        var reference: OpaquePointer?
+                        var type = git_branch_t(0)
+                        if git_branch_next(&reference, &type, iterator) != 0 { break }
+                        if let reference {
+                            if let refName = git_reference_name(reference) {
+                                _ = git_revwalk_push_ref(walker, refName)
+                            }
+                            git_reference_free(reference)
+                        }
+                    }
+                }
             } else {
                 let pushed = git_revwalk_push_head(walker)
                 if matches(pushed, GIT_EUNBORNBRANCH) || matches(pushed, GIT_ENOTFOUND) {
