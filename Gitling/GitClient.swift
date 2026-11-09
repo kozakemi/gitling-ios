@@ -4,7 +4,7 @@ import Foundation
 import LinkerConfigurator
 import Security
 
-struct RepoSummary: Identifiable, Hashable {
+struct RepoSummary: Identifiable, Hashable, Codable {
     var id: String { name }
     var name: String
     var branch: String?
@@ -71,6 +71,19 @@ enum GitClient {
         _ = git_libgit2_init()
         LibGit2Link.register()
     }()
+
+    static func repositoryNames(root: URL) -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? [])
+        .compactMap { url in
+            let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            return isDirectory ? url.lastPathComponent : nil
+        }
+        .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
 
     static func list(root: URL) -> [RepoSummary] {
         let children = (try? FileManager.default.contentsOfDirectory(

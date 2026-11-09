@@ -41,6 +41,7 @@ final class RepoStore: ObservableObject {
         userEmail = UserDefaults.standard.string(forKey: Keys.email) ?? ""
         loadAccounts()
         loadSSHKeys()
+        loadCachedRepos()
         Task { await reload() }
     }
 
@@ -48,6 +49,19 @@ final class RepoStore: ObservableObject {
         reloadGeneration += 1
         let generation = reloadGeneration
         let root = root
+        let quickNames = GitClient.repositoryNames(root: root)
+        if !quickNames.isEmpty {
+            let existing = Dictionary(uniqueKeysWithValues: repos.map { ($0.name, $0) })
+            repos = quickNames.map { name in
+                existing[name] ?? RepoSummary(
+                    name: name,
+                    branch: nil,
+                    isDirty: false,
+                    origin: nil,
+                    unavailable: false
+                )
+            }
+        }
         let repos = await Task.detached { GitClient.list(root: root) }.value
         // Pull-to-refresh can overlap with the scenePhase refresh. Only the latest
         // result may touch the list, and an unchanged list must not be reassigned:
@@ -56,6 +70,7 @@ final class RepoStore: ObservableObject {
         if self.repos != repos {
             self.repos = repos
         }
+        saveCachedRepos()
     }
 
     func saveIdentity() {
@@ -314,6 +329,24 @@ final class RepoStore: ObservableObject {
                 isLoadingRemoteProjects = false
             }
         }
+    }
+
+    private struct CachedRepos: Codable {
+        var root: String
+        var repos: [RepoSummary]
+    }
+
+    private func loadCachedRepos() {
+        guard let data = UserDefaults.standard.data(forKey: Keys.repoCache),
+              let cached = try? JSONDecoder().decode(CachedRepos.self, from: data),
+              cached.root == root.path else { return }
+        repos = cached.repos
+    }
+
+    private func saveCachedRepos() {
+        let cached = CachedRepos(root: root.path, repos: repos)
+        guard let data = try? JSONEncoder().encode(cached) else { return }
+        UserDefaults.standard.set(data, forKey: Keys.repoCache)
     }
 
     private func repoAccountLinks() -> [String: String] {
@@ -733,6 +766,7 @@ final class RepoStore: ObservableObject {
         static let accounts = "gitling.accounts.v1"
         static let repoAccounts = "gitling.repoAccounts.v1"
         static let sshKeys = "gitling.sshKeys.v1"
+        static let repoCache = "gitling.repoCache.v1"
         static let repoSSHKeys = "gitling.repoSSHKeys.v1"
     }
 }

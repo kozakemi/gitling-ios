@@ -101,6 +101,9 @@ struct RepoDetailView: View {
                 onLink: {
                     showOperations = false
                     pickFolder = true
+                },
+                onCheckout: {
+                    section = 0
                 }
             )
         }
@@ -129,6 +132,11 @@ struct RepoDetailView: View {
         }
         .onChange(of: selectedBranch) { _, _ in
             Task { await load() }
+        }
+        .onChange(of: section) { _, newSection in
+            if newSection == 1, history.isEmpty {
+                Task { await load() }
+            }
         }
     }
 
@@ -699,6 +707,7 @@ private struct RepoOperationsSheet: View {
     let savedAccount: String?
     let linked: Bool
     let onLink: () -> Void
+    let onCheckout: () -> Void
 
     @State private var newBranch = ""
     @State private var mergeTarget = ""
@@ -751,6 +760,7 @@ private struct RepoOperationsSheet: View {
                             } else {
                                 store.checkout(name: name, branch: item.name)
                             }
+                            onCheckout()
                             dismiss()
                         } label: {
                             LabeledContent(item.name) {
