@@ -10,6 +10,14 @@ final class TransportTests: XCTestCase {
         XCTAssertEqual(SSHURL.host("git@github.com:kozakemi/gitling-ios.git"), "github.com")
     }
 
+    func testUserInfoIsSplitFromHTTPURL() {
+        let split = GitRemoteURL.splitUserInfo("http://alice:s%40cret@example.com:8106/repo.git")
+        XCTAssertEqual(split.url, "http://example.com:8106/repo.git")
+        XCTAssertEqual(split.username, "alice")
+        XCTAssertEqual(split.password, "s@cret")
+        XCTAssertTrue(GitRemoteURL.isSupported(split.url))
+    }
+
     func testLFSPointerParsing() throws {
         let text = """
         version https://git-lfs.github.com/spec/v1
