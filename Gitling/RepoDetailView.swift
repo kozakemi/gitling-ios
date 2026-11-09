@@ -147,62 +147,62 @@ struct RepoDetailView: View {
                             Text("All branches").tag(true)
                         }
                         .pickerStyle(.segmented)
-                        Button {
-                            allBranches = true
-                            selectedBranch = nil
-                        } label: {
-                            HStack {
-                                Text("All branches")
-                                Spacer()
-                                if selectedBranch == nil {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.tint)
-                                }
-                            }
-                        }
-                        .id("all-\(selectedBranch ?? "all")")
-                        ForEach(branches.filter { !$0.isRemote }) { item in
-                            Button {
-                                allBranches = true
-                                selectedBranch = item.name
-                            } label: {
-                                HStack {
-                                    Label(item.name, systemImage: item.isCurrent ? "arrow.triangle.branch" : "arrow.triangle.branch")
-                                    Spacer()
-                                    if selectedBranch == item.name {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(.tint)
-                                    } else if item.isCurrent {
-                                        Text("Current")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                            .id("\(item.id)-\(selectedBranch ?? "all")")
-                        }
                         if allBranches {
-                            let remoteBranches = branches.filter {
-                                $0.isRemote && !$0.name.hasSuffix("/HEAD")
-                            }
-                            if !remoteBranches.isEmpty {
-                                Text("Remote branches")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                ForEach(remoteBranches) { item in
+                            HStack {
+                                Text("Branch")
+                                Spacer()
+                                Menu {
                                     Button {
-                                        selectedBranch = item.name
+                                        selectedBranch = nil
                                     } label: {
-                                        HStack {
-                                            Label(item.name, systemImage: "cloud")
-                                            Spacer()
-                                            if selectedBranch == item.name {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundStyle(.tint)
+                                        Label(
+                                            "All branches",
+                                            systemImage: selectedBranch == nil ? "checkmark" : "rectangle.stack"
+                                        )
+                                    }
+                                    let localBranches = branches.filter { !$0.isRemote }
+                                    if !localBranches.isEmpty {
+                                        Section("Local branches") {
+                                            ForEach(localBranches) { item in
+                                                Button {
+                                                    selectedBranch = item.name
+                                                } label: {
+                                                    Label(
+                                                        item.name,
+                                                        systemImage: selectedBranch == item.name
+                                                            ? "checkmark"
+                                                            : "arrow.triangle.branch"
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                    .id("\(item.id)-\(selectedBranch ?? "all")")
+                                    let remoteBranches = branches.filter {
+                                        $0.isRemote && !$0.name.hasSuffix("/HEAD")
+                                    }
+                                    if !remoteBranches.isEmpty {
+                                        Section("Remote branches") {
+                                            ForEach(remoteBranches) { item in
+                                                Button {
+                                                    selectedBranch = item.name
+                                                } label: {
+                                                    Label(
+                                                        item.name,
+                                                        systemImage: selectedBranch == item.name
+                                                            ? "checkmark"
+                                                            : "cloud"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(selectedBranch ?? String(localized: "All branches"))
+                                            .lineLimit(1)
+                                        Image(systemName: "chevron.up.chevron.down")
+                                    }
+                                    .foregroundStyle(.tint)
                                 }
                             }
                         }
