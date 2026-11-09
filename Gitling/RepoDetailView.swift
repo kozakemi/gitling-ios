@@ -20,6 +20,7 @@ struct RepoDetailView: View {
     @State private var linkedFolder: String?
     @State private var pickFolder = false
     @State private var allBranches = true
+    @State private var selectedBranch: String?
     @State private var branches: [BranchInfo] = []
     @State private var remotes: [RemoteInfo] = []
     @State private var sync: SyncCounts?
@@ -122,7 +123,11 @@ struct RepoDetailView: View {
             }
         }
         .task(id: store.revision) { await load() }
-        .onChange(of: allBranches) { _, _ in
+        .onChange(of: allBranches) { _, isAll in
+            if !isAll { selectedBranch = nil }
+            Task { await load() }
+        }
+        .onChange(of: selectedBranch) { _, _ in
             Task { await load() }
         }
     }
@@ -142,13 +147,39 @@ struct RepoDetailView: View {
                             Text("All branches").tag(true)
                         }
                         .pickerStyle(.segmented)
+                        Button {
+                            allBranches = true
+                            selectedBranch = nil
+                        } label: {
+                            HStack {
+                                Text("All branches")
+                                Spacer()
+                                if selectedBranch == nil {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.tint)
+                                }
+                            }
+                        }
+                        .id("all-\(selectedBranch ?? "all")")
                         ForEach(branches.filter { !$0.isRemote }) { item in
                             Button {
-                                store.checkout(name: name, branch: item.name)
+                                allBranches = true
+                                selectedBranch = item.name
                             } label: {
-                                Label(item.name, systemImage: item.isCurrent ? "checkmark" : "arrow.triangle.branch")
+                                HStack {
+                                    Label(item.name, systemImage: item.isCurrent ? "arrow.triangle.branch" : "arrow.triangle.branch")
+                                    Spacer()
+                                    if selectedBranch == item.name {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                    } else if item.isCurrent {
+                                        Text("Current")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
-                            .disabled(item.isCurrent || store.isBusy)
+                            .id("\(item.id)-\(selectedBranch ?? "all")")
                         }
                         if allBranches {
                             let remoteBranches = branches.filter {
@@ -159,8 +190,19 @@ struct RepoDetailView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 ForEach(remoteBranches) { item in
-                                    Label(item.name, systemImage: "cloud")
-                                        .foregroundStyle(.secondary)
+                                    Button {
+                                        selectedBranch = item.name
+                                    } label: {
+                                        HStack {
+                                            Label(item.name, systemImage: "cloud")
+                                            Spacer()
+                                            if selectedBranch == item.name {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundStyle(.tint)
+                                            }
+                                        }
+                                    }
+                                    .id("\(item.id)-\(selectedBranch ?? "all")")
                                 }
                             }
                         }
@@ -321,9 +363,20 @@ struct RepoDetailView: View {
     private func load() async {
         let url = repoURL
         let everyBranch = allBranches
+        let branchFilter = selectedBranch
         let loaded = await Task.detached { () -> Loaded in
             let summary = GitClient.summary(at: url)
-            let history = (try? GitClient.history(at: url, allBranches: everyBranch)) ?? []
+            var history: [CommitInfo] = []
+            var historyError: String?
+            do {
+                history = try GitClient.history(
+                    at: url,
+                    allBranches: everyBranch,
+                    ref: everyBranch ? branchFilter : nil
+                )
+            } catch {
+                historyError = error.localizedDescription
+            }
             let changes = (try? GitClient.status(at: url)) ?? []
             let branches = (try? GitClient.branches(at: url)) ?? []
             let remotes = (try? GitClient.remotes(at: url)) ?? []
@@ -333,6 +386,7 @@ struct RepoDetailView: View {
                 branch: summary?.branch ?? "",
                 origin: summary?.origin ?? "",
                 history: history,
+                historyError: historyError,
                 changes: changes,
                 branches: branches,
                 remotes: remotes,
@@ -343,6 +397,7 @@ struct RepoDetailView: View {
         branch = loaded.branch
         origin = loaded.origin
         history = loaded.history
+        loadError = loaded.historyError
         changes = loaded.changes
         branches = loaded.branches
         remotes = loaded.remotes
@@ -364,6 +419,7 @@ private struct Loaded {
     var branch: String
     var origin: String
     var history: [CommitInfo]
+    var historyError: String?
     var changes: [StatusEntry]
     var branches: [BranchInfo]
     var remotes: [RemoteInfo]

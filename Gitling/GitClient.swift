@@ -208,7 +208,12 @@ enum GitClient {
         }
     }
 
-    static func history(at repoURL: URL, limit: Int = 100, allBranches: Bool = false) throws -> [CommitInfo] {
+    static func history(
+        at repoURL: URL,
+        limit: Int = 100,
+        allBranches: Bool = false,
+        ref: String? = nil
+    ) throws -> [CommitInfo] {
         try locked {
             let opened = try open(repoURL)
             defer { withExtendedLifetime(opened) {} }
@@ -220,7 +225,19 @@ enum GitClient {
                 walker,
                 UInt32(GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_TIME.rawValue)
             )
-            if allBranches {
+            if let ref {
+                var pushed = false
+                let names = ref.hasPrefix("refs/")
+                    ? [ref]
+                    : ["refs/heads/\(ref)", "refs/remotes/\(ref)"]
+                for name in names {
+                    let result = git_revwalk_push_ref(walker, name)
+                    if result == 0 { pushed = true }
+                }
+                if !pushed {
+                    throw GitFailure.message(String(localized: "Could not read history"))
+                }
+            } else if allBranches {
                 // Include local branches and remote-tracking branches. Push
                 // each ref explicitly: globs do not reliably cross the slash
                 // in refs/remotes/origin/feature or branch names with slashes.
@@ -250,7 +267,7 @@ enum GitClient {
 
             var commits: [CommitInfo] = []
             var oid = git_oid()
-            let cap = allBranches ? max(limit, 300) : limit
+            let cap = (allBranches || ref != nil) ? max(limit, 300) : limit
             while commits.count < cap, git_revwalk_next(&oid, walker) == 0 {
                 var commit: OpaquePointer?
                 guard git_commit_lookup(&commit, repo, &oid) == 0, let commit else { continue }
