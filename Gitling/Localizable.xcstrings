@@ -201,16 +201,16 @@
     },
     "Branch": {
       "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ブランチ"
-          }
-        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "分支"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチ"
           }
         }
       }
@@ -3850,6 +3850,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "リモートブランチ"
+          }
+        }
+      }
+    },
+    "Local branches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地分支"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカルブランチ"
           }
         }
       }
