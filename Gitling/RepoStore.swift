@@ -374,7 +374,18 @@ final class RepoStore: ObservableObject {
         worktreeBookmark: Data? = nil
     ) {
         let root = root
-        let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let originalURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let split = GitRemoteURL.splitUserInfo(originalURL)
+        let url = split.url
+        var username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        var secret = secret
+        if username.isEmpty, let fromURL = split.username, !fromURL.isEmpty {
+            username = fromURL
+        }
+        if secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let password = split.password, !password.isEmpty {
+            secret = password
+        }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard GitRemoteURL.isSupported(url) else {
             alert = String(localized: "Only HTTP, HTTPS, and SSH repositories are supported.")

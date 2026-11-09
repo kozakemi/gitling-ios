@@ -22,6 +22,24 @@ enum GitRemoteURL {
     static func isHTTP(_ raw: String) -> Bool {
         raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http://")
     }
+
+    /// HTTP Basic auth is more reliable when the user name is not embedded in
+    /// the URL. libgit2's HTTP auth negotiation fails on some servers when the
+    /// URL carries userinfo, so move it into the credential callback instead.
+    static func splitUserInfo(_ raw: String) -> (url: String, username: String?, password: String?) {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var components = URLComponents(string: text),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" || scheme == "ssh",
+              components.host != nil else {
+            return (text, nil, nil)
+        }
+        let username = components.user?.removingPercentEncoding
+        let password = components.password?.removingPercentEncoding
+        components.user = nil
+        components.password = nil
+        return (components.url?.absoluteString ?? text, username, password)
+    }
 }
 
 enum SSHURL {
