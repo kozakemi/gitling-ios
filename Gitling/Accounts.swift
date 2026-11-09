@@ -45,7 +45,9 @@ struct RemoteAccount: Identifiable, Codable, Hashable, Sendable {
         if provider == .github {
             return url.host?.lowercased() == "github.com"
         }
-        guard url.scheme?.lowercased() == "https",
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              scheme == base.scheme?.lowercased(),
               url.host?.lowercased() == base.host?.lowercased() else { return false }
         if effectivePort(url) != effectivePort(base) { return false }
         let basePath = base.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -83,7 +85,8 @@ enum InstanceURL {
             text = "https://" + text
         }
         guard var components = URLComponents(string: text),
-              components.scheme?.lowercased() == "https",
+              let scheme = components.scheme?.lowercased(),
+              scheme == "https" || scheme == "http",
               let host = components.host,
               !host.isEmpty,
               components.user == nil,
@@ -94,14 +97,17 @@ enum InstanceURL {
             path = String(path.dropLast("/api/v4".count))
         }
         while path.hasSuffix("/") { path.removeLast() }
-        components.scheme = "https"
+        components.scheme = scheme
         components.host = host.lowercased()
         components.path = path
         components.query = nil
         components.fragment = nil
         components.user = nil
         components.password = nil
-        if let port = components.port, port == 443 { components.port = nil }
+        if let port = components.port,
+           (scheme == "https" && port == 443) || (scheme == "http" && port == 80) {
+            components.port = nil
+        }
         return components.url
     }
 

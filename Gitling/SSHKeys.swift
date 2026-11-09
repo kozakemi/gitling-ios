@@ -11,6 +11,19 @@ struct SSHKeyMaterial: Sendable {
     var passphrase: String?
 }
 
+enum GitRemoteURL {
+    static func isSupported(_ raw: String) -> Bool {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return text.hasPrefix("https://")
+            || text.hasPrefix("http://")
+            || SSHURL.isSSH(raw)
+    }
+
+    static func isHTTP(_ raw: String) -> Bool {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http://")
+    }
+}
+
 enum SSHURL {
     static func isSSH(_ raw: String) -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
