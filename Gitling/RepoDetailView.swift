@@ -134,6 +134,24 @@ struct RepoDetailView: View {
 
     private var repoURL: URL { store.repoURL(name) }
 
+    private var selectedBranchInfo: BranchInfo? {
+        guard let selectedBranch else { return nil }
+        return branches.first { $0.name == selectedBranch }
+    }
+
+    private func checkout(_ branch: BranchInfo) {
+        if branch.isRemote {
+            let localName = branch.name
+                .split(separator: "/", maxSplits: 1)
+                .dropFirst()
+                .joined(separator: "/")
+            store.checkoutRemote(name: name, branch: branch.name)
+            if !localName.isEmpty { selectedBranch = localName }
+        } else {
+            store.checkout(name: name, branch: branch.name)
+        }
+    }
+
     private var historyList: some View {
         let rows = CommitGraph.rows(from: history)
         return Group {
@@ -205,15 +223,9 @@ struct RepoDetailView: View {
                                     .foregroundStyle(.tint)
                                 }
                             }
-                            if let selectedBranch,
-                               let selected = branches.first(where: { $0.name == selectedBranch }),
-                               !selected.isCurrent {
+                            if let selected = selectedBranchInfo, !selected.isCurrent {
                                 Button {
-                                    if selected.isRemote {
-                                        store.checkoutRemote(name: name, branch: selected.name)
-                                    } else {
-                                        store.checkout(name: name, branch: selected.name)
-                                    }
+                                    checkout(selected)
                                 } label: {
                                     Label("Checkout", systemImage: "arrow.triangle.branch")
                                 }
