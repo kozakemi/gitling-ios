@@ -237,6 +237,7 @@ private struct AddRepoSheet: View {
     @State private var folderName: String?
     @State private var pickFolder = false
     @State private var repoQuery = ""
+    @State private var sshKeyID = ""
 
     var body: some View {
         NavigationStack {
@@ -297,6 +298,21 @@ private struct AddRepoSheet: View {
                         TextField("Local Name", text: $name)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                    }
+                }
+                if kind == 0, selectedAccount == nil, SSHURL.isSSH(url) {
+                    Section("SSH") {
+                        Picker("SSH Key", selection: $sshKeyID) {
+                            Text("Password or none").tag("")
+                            ForEach(store.sshKeys) { key in
+                                Text(key.name).tag(key.id.uuidString)
+                            }
+                        }
+                        if store.sshKeys.isEmpty {
+                            Text("Import an SSH key in Settings.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 Section("Working Folder") {
@@ -458,6 +474,7 @@ private struct AddRepoSheet: View {
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines),
                 secret: secret,
                 accountID: selectedAccount?.id,
+                sshKeyID: selectedAccount == nil ? UUID(uuidString: sshKeyID) : nil,
                 worktreeBookmark: folderBookmark
             )
         } else {
@@ -473,6 +490,7 @@ private struct SettingsSheet: View {
     @Environment(\.openURL) private var openURL
     @State private var filesInfo: String?
     @State private var showGitLabAccount = false
+    @State private var showSSHImport = false
 
     var body: some View {
         NavigationStack {
@@ -485,6 +503,7 @@ private struct SettingsSheet: View {
                         .autocorrectionDisabled()
                         .keyboardType(.emailAddress)
                 }
+                sshKeysSection
                 accountsSection
                 Section("Files") {
                     Button("Show in Files") {
@@ -527,6 +546,9 @@ private struct SettingsSheet: View {
             .sheet(isPresented: $showGitLabAccount) {
                 GitLabAccountSheet()
             }
+            .sheet(isPresented: $showSSHImport) {
+                SSHKeyImportSheet()
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("OK") {
@@ -534,6 +556,39 @@ private struct SettingsSheet: View {
                         dismiss()
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sshKeysSection: some View {
+        Section("SSH Keys") {
+            if store.sshKeys.isEmpty {
+                Text("No SSH keys yet. Import a private key to clone over SSH.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(store.sshKeys) { key in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(key.name)
+                            Text("Stored in Keychain")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            store.removeSSHKey(key)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(Text("Remove SSH Key"))
+                    }
+                }
+            }
+            Button("Import SSH Key") {
+                showSSHImport = true
             }
         }
     }
@@ -697,5 +752,103 @@ private struct GitLabAccountSheet: View {
                 isConnecting = false
             }
         }
+    }
+}
+
+
+private struct SSHKeyImportSheet: View {
+    @EnvironmentObject private var store: RepoStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var passphrase = ""
+    @State private var privateKey = ""
+    @State private var fileName = ""
+    @State private var error: String?
+    @State private var isImporting = false
+    @State private var pickFile = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Private Key") {
+                    Button("Choose Private Key File") { pickFile = true }
+                    if !fileName.isEmpty {
+                        Text(fileName)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Import an existing private key. Generated keys and key export are not available yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Name") {
+                    TextField("Key Name", text: $name)
+                        .textInputAutocapitalization(.words)
+                }
+                Section("Passphrase") {
+                    SecureField("Passphrase (optional)", text: $passphrase)
+                    Text("The passphrase is stored in the Keychain and used when the key is unlocked.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                if let error {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Import SSH Key")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(isImporting)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isImporting)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Import") { importKey() }
+                        .disabled(privateKey.isEmpty || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .fileImporter(isPresented: $pickFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    let accessing = url.startAccessingSecurityScopedResource()
+                    defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+                    do {
+                        let data = try Data(contentsOf: url)
+                        guard data.count <= 128 * 1024,
+                              let text = String(data: data, encoding: .utf8),
+                              text.contains("PRIVATE KEY-----") else {
+                            error = String(localized: "Could not read that private key.")
+                            return
+                        }
+                        privateKey = text
+                        fileName = url.lastPathComponent
+                        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            name = url.deletingPathExtension().lastPathComponent
+                        }
+                        error = nil
+                    } catch {
+                        self.error = String(localized: "Could not read that private key.")
+                    }
+                case .failure:
+                    error = String(localized: "Could not read that private key.")
+                }
+            }
+        }
+    }
+
+    private func importKey() {
+        isImporting = true
+        guard store.addSSHKey(name: name, privateKey: privateKey, passphrase: passphrase) != nil else {
+            error = String(localized: "Could not read that private key.")
+            isImporting = false
+            return
+        }
+        dismiss()
     }
 }

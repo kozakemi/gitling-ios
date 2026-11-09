@@ -24,6 +24,9 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - 支持关联「文件」App 中的外部文件夹作为工作区
 - GitHub Device Flow 登录
 - GitLab.com 和自建 GitLab，支持多个同平台账户
+- HTTPS 和 SSH 传输；支持导入已有 SSH 私钥并关联到克隆的仓库
+- SSH 主机密钥采用首次信任（TOFU），主机密钥变化时会拒绝连接
+- Git LFS 指针下载和检出，以及对 LFS 跟踪文件执行 clean/upload
 - Personal Access Token 保存到 Keychain，不写入 `.git/config`
 - 新建仓库默认本地初始化；克隆时先选择账户，再加载该账户的远程仓库
 
@@ -42,7 +45,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - iOS 18.0 或更高版本
 - Xcode 26 / 27
 - Swift 5
-- libgit2 1.8.4（仓库内提供静态 xcframework 和构建脚本）
+- libgit2 1.8.4 与 libssh2/OpenSSL（仓库内提供静态预编译库）
 - 不需要 CocoaPods 或外部 Swift Package 下载
 
 ## 构建
@@ -90,11 +93,12 @@ xcodebuild \
 ## 目录结构
 
 ```text
-Gitling/                 iOS 应用、界面、账户、GitLab/GitHub 客户端
+Gitling/                 iOS 应用、界面、账户、SSH/LFS、GitLab/GitHub 客户端
 GitlingFileProvider/     「文件」App 的 File Provider 扩展
 Shared/                  仓库存储、工作区、写入锁、File Provider 共享逻辑
 GitlingTests/            XCTest 单元测试
 Vendor/static-libgit2/   libgit2 静态 xcframework 与本地 Swift Package
+Vendor/libssh2/          libssh2/OpenSSL 静态库与许可证
 scripts/                 构建、IPA、本地化检查脚本
 docs/                    截图
 ```
@@ -113,8 +117,10 @@ docs/                    截图
 
 ## 已知限制
 
-- SSH 传输目前关闭，HTTPS 可用。
-- 不支持 Git LFS、交互式 rebase 和自定义 merge driver。
+- SSH 私钥只支持导入，暂不支持在 App 内生成或导出；口令保存在 Keychain。
+- SSH 主机密钥采用首次信任（TOFU）。主机密钥变化会拒绝连接，但暂未提供 known_hosts 管理界面。
+- Git LFS 支持指针下载/检出，以及 LFS 跟踪文件的 clean/upload；暂不支持 LFS lock 命令和独立的进度界面。
+- 不支持交互式 rebase 和自定义 merge driver。
 - 超过 256 KB 的文件在提交差异中按二进制处理，避免界面卡死。
 - GPLv3 与 App Store 分发条款存在兼容性争议。若要上架 App Store，建议先完成许可证审计，并考虑双许可证或 App Store 例外；这不是法律意见。
 - 本项目是非官方客户端，使用前请自行确认名称、图标和商标的使用权限。
@@ -122,6 +128,12 @@ docs/                    截图
 ## 开发说明
 
 本项目在开发过程中使用了 **Grok** 和 **DeepSeek** 作为 AI 编程助手，用于代码生成、重构建议、测试和文档编写。所有提交由维护者审查后合入。
+
+## 第三方许可证
+
+- [libgit2](https://libgit2.org/)：GPL-2.0 with Linking Exception
+- [libssh2](https://www.libssh2.org/)：BSD-3-Clause，见 `Vendor/libssh2/LICENSE-libssh2`
+- [OpenSSL](https://www.openssl.org/)：Apache-2.0，见 `Vendor/libssh2/LICENSE-OpenSSL`
 
 ## 许可证
 
