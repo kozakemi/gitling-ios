@@ -205,6 +205,19 @@ struct RepoDetailView: View {
                                     .foregroundStyle(.tint)
                                 }
                             }
+                            if let selectedBranch,
+                               let selected = branches.first(where: { $0.name == selectedBranch }),
+                               !selected.isCurrent {
+                                Button {
+                                    if selected.isRemote {
+                                        store.checkoutRemote(name: name, branch: selected.name)
+                                    } else {
+                                        store.checkout(name: name, branch: selected.name)
+                                    }
+                                } label: {
+                                    Label("Checkout", systemImage: "arrow.triangle.branch")
+                                }
+                            }
                         }
                     }
                     Section {
@@ -720,16 +733,20 @@ private struct RepoOperationsSheet: View {
                 Section("Branches") {
                     ForEach(branches) { item in
                         Button {
-                            guard !item.isRemote, !item.isCurrent else { return }
-                            store.checkout(name: name, branch: item.name)
+                            guard !item.isCurrent else { return }
+                            if item.isRemote {
+                                store.checkoutRemote(name: name, branch: item.name)
+                            } else {
+                                store.checkout(name: name, branch: item.name)
+                            }
                             dismiss()
                         } label: {
                             LabeledContent(item.name) {
                                 if item.isCurrent { Text("Current") }
-                                else if item.isRemote { Text("Remote") }
+                                else if item.isRemote { Text("Checkout as Local") }
                             }
                         }
-                        .disabled(item.isRemote || item.isCurrent)
+                        .disabled(item.isCurrent)
                     }
                     TextField("New Branch", text: $newBranch)
                         .textInputAutocapitalization(.never)

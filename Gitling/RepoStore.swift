@@ -597,6 +597,13 @@ final class RepoStore: ObservableObject {
         }
     }
 
+    func checkoutRemote(name: String, branch: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…")) {
+            try GitClient.checkoutRemote(at: url, branch: branch)
+        }
+    }
+
     func createBranch(name: String, branch: String) {
         let url = repoURL(name)
         run(String(localized: "Working…")) {
