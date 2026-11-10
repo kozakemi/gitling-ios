@@ -988,6 +988,10 @@ enum GitClient {
             return try currentBranch(opened.repo)
         }) ?? String(localized: "No commits yet")
         let entries = try status(at: repoURL)
+        return statusText(entries: entries, branch: branch, sync: syncCounts(at: repoURL))
+    }
+
+    static func statusText(entries: [StatusEntry], branch: String, sync: SyncCounts?) -> String {
         var lines = [String(format: String(localized: "On branch %@"), branch)]
         let staged = entries.filter(\.staged)
         let unstaged = entries.filter { $0.unstaged && !$0.untracked }
@@ -1010,7 +1014,7 @@ enum GitClient {
         if staged.isEmpty && unstaged.isEmpty && untracked.isEmpty {
             lines.append(String(localized: "nothing to commit, working tree clean"))
         }
-        if let counts = syncCounts(at: repoURL), counts.ahead > 0 || counts.behind > 0 {
+        if let counts = sync, counts.ahead > 0 || counts.behind > 0 {
             lines.append(String(format: String(localized: "Your branch is %@ ahead and %@ behind."), "\(counts.ahead)", "\(counts.behind)"))
         }
         return lines.joined(separator: "\n")
