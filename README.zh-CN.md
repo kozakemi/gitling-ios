@@ -31,6 +31,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - Git LFS 指针下载和检出，以及对 LFS 跟踪文件执行 clean/upload
 - Personal Access Token 保存到 Keychain，不写入 `.git/config`
 - 新建仓库默认本地初始化；克隆时先选择账户，再加载该账户的远程仓库
+- 右下角添加按钮在 iOS 26 使用 Liquid Glass，在 iOS 18 使用原来的实心品牌色按钮
 
 ## 截图
 
