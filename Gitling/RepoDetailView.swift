@@ -26,6 +26,8 @@ struct RepoDetailView: View {
     @State private var sync: SyncCounts?
     @State private var statusText = ""
     @State private var showOperations = false
+    @State private var isLoadingDetail = false
+    @State private var loadGeneration = 0
     @State private var consoleLines: [ConsoleLine] = []
     @State private var command = ""
     @ScaledMetric(relativeTo: .body) private var commitRowHeight: CGFloat = 56
@@ -79,6 +81,21 @@ struct RepoDetailView: View {
                     .padding(.bottom, 8)
             }
         }
+        .overlay {
+            if isLoadingDetail || store.isBusy {
+                ZStack {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .controlSize(.large)
+                        .padding(24)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .transition(.opacity)
+                .allowsHitTesting(true)
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: isLoadingDetail || store.isBusy)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
@@ -134,7 +151,7 @@ struct RepoDetailView: View {
             Task { await load() }
         }
         .onChange(of: section) { _, newSection in
-            if newSection == 1, history.isEmpty {
+            if newSection == 1 || newSection == 2 {
                 Task { await load() }
             }
         }
@@ -394,51 +411,94 @@ struct RepoDetailView: View {
     }
 
     private func load() async {
+        loadGeneration += 1
+        let generation = loadGeneration
         let url = repoURL
+        let sectionAtStart = section
         let everyBranch = allBranches
         let branchFilter = selectedBranch
-        let loaded = await Task.detached { () -> Loaded in
-            let summary = GitClient.summary(at: url)
-            var history: [CommitInfo] = []
-            var historyError: String?
-            do {
-                history = try GitClient.history(
-                    at: url,
-                    allBranches: everyBranch,
-                    ref: everyBranch ? branchFilter : nil
-                )
-            } catch {
-                historyError = error.localizedDescription
+        isLoadingDetail = true
+        loadError = nil
+        defer {
+            if generation == loadGeneration {
+                isLoadingDetail = false
             }
-            let changes = (try? GitClient.status(at: url)) ?? []
+        }
+
+        let header = await Task.detached { () -> HeaderData in
+            let summary = GitClient.summary(at: url)
             let branches = (try? GitClient.branches(at: url)) ?? []
             let remotes = (try? GitClient.remotes(at: url)) ?? []
-            let sync = GitClient.syncCounts(at: url)
-            let statusText = (try? GitClient.statusText(at: url)) ?? ""
-            return Loaded(
+            return HeaderData(
                 branch: summary?.branch ?? "",
                 origin: summary?.origin ?? "",
-                history: history,
-                historyError: historyError,
-                changes: changes,
                 branches: branches,
-                remotes: remotes,
-                sync: sync,
-                statusText: statusText
+                remotes: remotes
             )
         }.value
-        branch = loaded.branch
-        origin = loaded.origin
-        history = loaded.history
-        loadError = loaded.historyError
-        changes = loaded.changes
-        branches = loaded.branches
-        remotes = loaded.remotes
-        sync = loaded.sync
-        statusText = loaded.statusText
-        savedAccount = store.accountUsername(for: loaded.origin, repoName: name)
-            ?? GitClient.host(of: loaded.origin).flatMap { KeychainStore.load(host: $0)?.username }
+        guard generation == loadGeneration else { return }
+
+        branch = header.branch
+        origin = header.origin
+        branches = header.branches
+        remotes = header.remotes
+        savedAccount = store.accountUsername(for: header.origin, repoName: name)
+            ?? GitClient.host(of: header.origin).flatMap { KeychainStore.load(host: $0)?.username }
         linkedFolder = GitClient.linkedFolderName(at: repoURL)
+
+        if sectionAtStart == 1 {
+            let historyData = await Task.detached { () -> HistoryData in
+                do {
+                    let commits = try GitClient.history(
+                        at: url,
+                        allBranches: everyBranch,
+                        ref: everyBranch ? branchFilter : nil
+                    )
+                    return HistoryData(commits: commits, error: nil)
+                } catch {
+                    return HistoryData(commits: [], error: error.localizedDescription)
+                }
+            }.value
+            guard generation == loadGeneration else { return }
+            history = historyData.commits
+            loadError = historyData.error
+        }
+
+        if sectionAtStart == 2 {
+            let branchName = header.branch
+            let statusData = await Task.detached { () -> StatusData in
+                let changes = (try? GitClient.status(at: url)) ?? []
+                let sync = GitClient.syncCounts(at: url)
+                let text = GitClient.statusText(
+                    entries: changes,
+                    branch: branchName,
+                    sync: sync
+                )
+                return StatusData(changes: changes, sync: sync, text: text)
+            }.value
+            guard generation == loadGeneration else { return }
+            changes = statusData.changes
+            sync = statusData.sync
+            statusText = statusData.text
+        }
+    }
+
+    private struct HeaderData {
+        var branch: String
+        var origin: String
+        var branches: [BranchInfo]
+        var remotes: [RemoteInfo]
+    }
+
+    private struct HistoryData {
+        var commits: [CommitInfo]
+        var error: String?
+    }
+
+    private struct StatusData {
+        var changes: [StatusEntry]
+        var sync: SyncCounts?
+        var text: String
     }
 }
 
@@ -448,17 +508,7 @@ private struct ConsoleLine: Identifiable {
     var output: String
 }
 
-private struct Loaded {
-    var branch: String
-    var origin: String
-    var history: [CommitInfo]
-    var historyError: String?
-    var changes: [StatusEntry]
-    var branches: [BranchInfo]
-    var remotes: [RemoteInfo]
-    var sync: SyncCounts?
-    var statusText: String
-}
+
 
 private struct FileBrowser: View {
     let repo: URL
