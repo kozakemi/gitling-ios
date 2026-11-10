@@ -68,21 +68,11 @@ struct RepoListView: View {
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        showAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 56, height: 56)
-                            .background(Circle().fill(Color.accentColor))
-                            .shadow(color: .black.opacity(0.22), radius: 8, y: 4)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(store.isBusy)
-                    .accessibilityLabel(Text("Add repository"))
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
+                    addButton
+                        .disabled(store.isBusy)
+                        .accessibilityLabel(Text("Add repository"))
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                 }
                 .refreshable { await store.reload() }
             }
@@ -161,6 +151,48 @@ struct RepoListView: View {
                     .padding(.bottom, 12)
             }
         }
+    }
+
+    @ViewBuilder
+    private var addButton: some View {
+#if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            Button {
+                showAdd = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .glassEffect(
+                .regular
+                    .tint(Color.accentColor.opacity(0.72))
+                    .interactive(),
+                in: Circle()
+            )
+        } else {
+            legacyAddButton
+        }
+#else
+        legacyAddButton
+#endif
+    }
+
+    private var legacyAddButton: some View {
+        Button {
+            showAdd = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(Color.accentColor))
+                .shadow(color: .black.opacity(0.22), radius: 8, y: 4)
+        }
+        .buttonStyle(.plain)
     }
 
     private var searchField: some View {

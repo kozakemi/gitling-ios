@@ -38,6 +38,8 @@ so other editors can modify files.
 - Personal Access Tokens stored in the Keychain, never in `.git/config`
 - New repositories default to local initialization; when cloning, choose an account
   first and only then load that account's remote repositories
+- The add button uses Liquid Glass on iOS 26 and falls back to the solid brand button
+  on iOS 18
 
 ## Screenshots
 
