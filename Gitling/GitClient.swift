@@ -13,7 +13,7 @@ struct RepoSummary: Identifiable, Hashable, Codable {
     var unavailable: Bool
 }
 
-struct CommitInfo: Identifiable, Hashable {
+struct CommitInfo: Identifiable, Hashable, Codable {
     var id: String
     var summary: String
     var author: String
@@ -21,7 +21,7 @@ struct CommitInfo: Identifiable, Hashable {
     var parents: [String] = []
 }
 
-struct BranchInfo: Identifiable, Hashable {
+struct BranchInfo: Identifiable, Hashable, Codable {
     var name: String
     var isCurrent: Bool
     var isRemote: Bool
@@ -30,18 +30,18 @@ struct BranchInfo: Identifiable, Hashable {
     var id: String { (isRemote ? "remote:" : "local:") + name }
 }
 
-struct RemoteInfo: Identifiable, Hashable {
+struct RemoteInfo: Identifiable, Hashable, Codable {
     var name: String
     var url: String
     var id: String { name }
 }
 
-struct SyncCounts: Equatable {
+struct SyncCounts: Equatable, Codable {
     var ahead: Int
     var behind: Int
 }
 
-struct StatusEntry: Identifiable, Hashable {
+struct StatusEntry: Identifiable, Hashable, Codable {
     var id: String { path }
     var path: String
     var staged: Bool

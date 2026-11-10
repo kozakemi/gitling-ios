@@ -26,8 +26,9 @@ struct RepoDetailView: View {
     @State private var sync: SyncCounts?
     @State private var statusText = ""
     @State private var showOperations = false
-    @State private var isLoadingDetail = false
+    @State private var spinnerLoads = 0
     @State private var loadGeneration = 0
+    @State private var cacheRestored = false
     @State private var consoleLines: [ConsoleLine] = []
     @State private var command = ""
     @ScaledMetric(relativeTo: .body) private var commitRowHeight: CGFloat = 56
@@ -82,7 +83,7 @@ struct RepoDetailView: View {
             }
         }
         .overlay {
-            if isLoadingDetail || store.isBusy {
+            if spinnerLoads > 0 || store.isBusy {
                 ZStack {
                     Color.black.opacity(0.12)
                         .ignoresSafeArea()
@@ -95,13 +96,18 @@ struct RepoDetailView: View {
                 .allowsHitTesting(true)
             }
         }
-        .animation(.easeInOut(duration: 0.15), value: isLoadingDetail || store.isBusy)
+        .animation(.easeInOut(duration: 0.15), value: spinnerLoads > 0 || store.isBusy)
         .background(Color(.systemGroupedBackground))
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            Button("Operations", systemImage: "ellipsis.circle") { showOperations = true }
-                .disabled(store.isBusy)
+            Button("Operations", systemImage: "ellipsis.circle") {
+                if branches.isEmpty {
+                    Task { await load(showSpinner: true) }
+                }
+                showOperations = true
+            }
+            .disabled(store.isBusy)
         }
         .sheet(isPresented: $showOperations) {
             RepoOperationsSheet(
@@ -119,9 +125,7 @@ struct RepoDetailView: View {
                     showOperations = false
                     pickFolder = true
                 },
-                onCheckout: {
-                    section = 0
-                }
+                isLoading: spinnerLoads > 0
             )
         }
         .fileImporter(isPresented: $pickFolder, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
@@ -142,17 +146,35 @@ struct RepoDetailView: View {
                 store.alert = String(localized: "Could not use that folder.")
             }
         }
-        .task(id: store.revision) { await load() }
+        .task(id: store.revision) {
+            if !cacheRestored {
+                cacheRestored = true
+                if let cached = RepoDetailCache.load(name) {
+                    applyCache(cached)
+                }
+            }
+            await load(showSpinner: false)
+        }
         .onChange(of: allBranches) { _, isAll in
-            if !isAll { selectedBranch = nil }
-            Task { await load() }
+            if isAll {
+                Task { await load(showSpinner: history.isEmpty) }
+            } else {
+                let sameAsCurrent = selectedBranch == branch
+                if selectedBranch != nil { selectedBranch = nil }
+                if !sameAsCurrent {
+                    Task { await load(showSpinner: history.isEmpty) }
+                }
+            }
         }
         .onChange(of: selectedBranch) { _, _ in
-            Task { await load() }
+            guard allBranches else { return }
+            Task { await load(showSpinner: true) }
         }
         .onChange(of: section) { _, newSection in
-            if newSection == 1 || newSection == 2 {
-                Task { await load() }
+            if newSection == 1 {
+                Task { await load(showSpinner: history.isEmpty) }
+            } else if newSection == 2 {
+                Task { await load(showSpinner: changes.isEmpty) }
             }
         }
     }
@@ -410,19 +432,34 @@ struct RepoDetailView: View {
         consoleLines.append(ConsoleLine(command: line, output: output))
     }
 
-    private func load() async {
+    private func applyCache(_ cached: RepoDetailSnapshot) {
+        branch = cached.branch
+        origin = cached.origin
+        branches = cached.branches
+        remotes = cached.remotes
+        // Only reuse history/status captured for the default all-branches view.
+        if cached.allBranches && cached.selectedBranch == nil {
+            history = cached.history
+            changes = cached.changes
+            statusText = cached.statusText
+            sync = cached.sync
+        }
+        savedAccount = store.accountUsername(for: cached.origin, repoName: name)
+            ?? GitClient.host(of: cached.origin).flatMap { KeychainStore.load(host: $0)?.username }
+        linkedFolder = GitClient.linkedFolderName(at: repoURL)
+    }
+
+    private func load(showSpinner: Bool) async {
         loadGeneration += 1
         let generation = loadGeneration
         let url = repoURL
         let sectionAtStart = section
         let everyBranch = allBranches
         let branchFilter = selectedBranch
-        isLoadingDetail = true
         loadError = nil
+        if showSpinner { spinnerLoads += 1 }
         defer {
-            if generation == loadGeneration {
-                isLoadingDetail = false
-            }
+            if showSpinner { spinnerLoads = max(0, spinnerLoads - 1) }
         }
 
         let header = await Task.detached { () -> HeaderData in
@@ -433,18 +470,28 @@ struct RepoDetailView: View {
                 branch: summary?.branch ?? "",
                 origin: summary?.origin ?? "",
                 branches: branches,
-                remotes: remotes
+                remotes: remotes,
+                hasSummary: summary != nil
             )
         }.value
         guard generation == loadGeneration else { return }
-
-        branch = header.branch
-        origin = header.origin
+        if header.hasSummary {
+            branch = header.branch
+            origin = header.origin
+        }
         branches = header.branches
         remotes = header.remotes
         savedAccount = store.accountUsername(for: header.origin, repoName: name)
             ?? GitClient.host(of: header.origin).flatMap { KeychainStore.load(host: $0)?.username }
         linkedFolder = GitClient.linkedFolderName(at: repoURL)
+
+        var snapshot = RepoDetailCache.load(name) ?? RepoDetailSnapshot()
+        snapshot.branch = branch
+        snapshot.origin = origin
+        snapshot.branches = branches
+        snapshot.remotes = remotes
+        snapshot.allBranches = everyBranch
+        snapshot.selectedBranch = branchFilter
 
         if sectionAtStart == 1 {
             let historyData = await Task.detached { () -> HistoryData in
@@ -460,12 +507,15 @@ struct RepoDetailView: View {
                 }
             }.value
             guard generation == loadGeneration else { return }
-            history = historyData.commits
             loadError = historyData.error
+            if historyData.error == nil {
+                history = historyData.commits
+                snapshot.history = historyData.commits
+            }
         }
 
         if sectionAtStart == 2 {
-            let branchName = header.branch
+            let branchName = branch
             let statusData = await Task.detached { () -> StatusData in
                 let changes = (try? GitClient.status(at: url)) ?? []
                 let sync = GitClient.syncCounts(at: url)
@@ -480,7 +530,13 @@ struct RepoDetailView: View {
             changes = statusData.changes
             sync = statusData.sync
             statusText = statusData.text
+            snapshot.changes = statusData.changes
+            snapshot.sync = statusData.sync
+            snapshot.statusText = statusData.text
         }
+
+        snapshot.savedAt = Date()
+        RepoDetailCache.save(snapshot, for: name)
     }
 
     private struct HeaderData {
@@ -488,6 +544,7 @@ struct RepoDetailView: View {
         var origin: String
         var branches: [BranchInfo]
         var remotes: [RemoteInfo]
+        var hasSummary: Bool
     }
 
     private struct HistoryData {
@@ -757,7 +814,7 @@ private struct RepoOperationsSheet: View {
     let savedAccount: String?
     let linked: Bool
     let onLink: () -> Void
-    let onCheckout: () -> Void
+    let isLoading: Bool
 
     @State private var newBranch = ""
     @State private var mergeTarget = ""
@@ -810,7 +867,6 @@ private struct RepoOperationsSheet: View {
                             } else {
                                 store.checkout(name: name, branch: item.name)
                             }
-                            onCheckout()
                             dismiss()
                         } label: {
                             LabeledContent(item.name) {
@@ -915,6 +971,20 @@ private struct RepoOperationsSheet: View {
                     }
                 }
             }
+            .overlay {
+                if isLoading || store.isBusy {
+                    ZStack {
+                        Color.black.opacity(0.12)
+                            .ignoresSafeArea()
+                        ProgressView()
+                            .controlSize(.large)
+                            .padding(24)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    }
+                    .allowsHitTesting(true)
+                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: isLoading || store.isBusy)
             .navigationTitle("Operations")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

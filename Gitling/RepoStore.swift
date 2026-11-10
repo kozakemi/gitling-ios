@@ -543,6 +543,7 @@ final class RepoStore: ObservableObject {
     func delete(name: String) {
         let url = root.appendingPathComponent(name, isDirectory: true)
         removeRepoLink(name)
+        RepoDetailCache.remove(name)
         run(String(localized: "Working…")) {
             try RepoWriteLock.withLock(at: url) {
                 try RepoStorage.removeRepository(named: name)
