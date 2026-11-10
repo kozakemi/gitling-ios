@@ -225,7 +225,8 @@ enum GitClient {
         at repoURL: URL,
         limit: Int = 100,
         allBranches: Bool = false,
-        ref: String? = nil
+        ref: String? = nil,
+        offset: Int = 0
     ) throws -> [CommitInfo] {
         try locked {
             let opened = try open(repoURL)
@@ -280,8 +281,12 @@ enum GitClient {
 
             var commits: [CommitInfo] = []
             var oid = git_oid()
-            let cap = (allBranches || ref != nil) ? max(limit, 300) : limit
-            while commits.count < cap, git_revwalk_next(&oid, walker) == 0 {
+            var skipped = 0
+            while commits.count < limit, git_revwalk_next(&oid, walker) == 0 {
+                if skipped < offset {
+                    skipped += 1
+                    continue
+                }
                 var commit: OpaquePointer?
                 guard git_commit_lookup(&commit, repo, &oid) == 0, let commit else { continue }
                 defer { git_commit_free(commit) }

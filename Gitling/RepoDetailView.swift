@@ -11,6 +11,11 @@ struct RepoDetailView: View {
     @State private var origin = ""
     @State private var files: [WorkEntry] = []
     @State private var history: [CommitInfo] = []
+    @State private var historyHasMore = false
+    @State private var historyResetNeeded = true
+    @State private var isLoadingHistory = false
+    @State private var isLoadingMoreHistory = false
+    private let historyPageSize = 300
     @State private var changes: [StatusEntry] = []
     @State private var username = ""
     @State private var secret = ""
@@ -151,28 +156,35 @@ struct RepoDetailView: View {
                 cacheRestored = true
                 if let cached = RepoDetailCache.load(name) {
                     applyCache(cached)
+                } else {
+                    historyResetNeeded = true
                 }
+            } else {
+                resetHistory()
             }
             await load(showSpinner: false)
         }
         .onChange(of: allBranches) { _, isAll in
             if isAll {
-                Task { await load(showSpinner: history.isEmpty) }
+                resetHistory()
+                Task { await load(showSpinner: false) }
             } else {
                 let sameAsCurrent = selectedBranch == branch
                 if selectedBranch != nil { selectedBranch = nil }
                 if !sameAsCurrent {
-                    Task { await load(showSpinner: history.isEmpty) }
+                    resetHistory()
+                    Task { await load(showSpinner: false) }
                 }
             }
         }
         .onChange(of: selectedBranch) { _, _ in
             guard allBranches else { return }
-            Task { await load(showSpinner: true) }
+            resetHistory()
+            Task { await load(showSpinner: false) }
         }
         .onChange(of: section) { _, newSection in
             if newSection == 1 {
-                Task { await load(showSpinner: history.isEmpty) }
+                Task { await load(showSpinner: false) }
             } else if newSection == 2 {
                 Task { await load(showSpinner: changes.isEmpty) }
             }
@@ -202,7 +214,14 @@ struct RepoDetailView: View {
     private var historyList: some View {
         let rows = CommitGraph.rows(from: history)
         return Group {
-            if rows.isEmpty {
+            if isLoadingHistory && rows.isEmpty {
+                VStack {
+                    Spacer()
+                    historyLoadingBar
+                        .padding(.bottom, 18)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if rows.isEmpty {
                 ContentUnavailableView("No commits yet", systemImage: "clock")
             } else {
                 List {
@@ -315,12 +334,45 @@ struct RepoDetailView: View {
                             .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 12))
                             .listRowSeparator(.hidden)
                         }
+                        if historyHasMore {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Loading more…")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .listRowSeparator(.hidden)
+                            .id(history.count)
+                            .onAppear {
+                                Task { await loadMoreHistory() }
+                            }
+                        }
                     }
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
+                .overlay(alignment: .bottom) {
+                    if isLoadingHistory {
+                        historyLoadingBar
+                            .padding(.bottom, 12)
+                    }
+                }
             }
         }
+    }
+
+    private var historyLoadingBar: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+            Text("Loading history…")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(.regularMaterial, in: Capsule())
     }
 
     private func branchRefs(for commitID: String) -> [BranchInfo] {
@@ -440,6 +492,8 @@ struct RepoDetailView: View {
         // Only reuse history/status captured for the default all-branches view.
         if cached.allBranches && cached.selectedBranch == nil {
             history = cached.history
+            historyHasMore = cached.history.count >= historyPageSize
+            historyResetNeeded = false
             changes = cached.changes
             statusText = cached.statusText
             sync = cached.sync
@@ -493,11 +547,13 @@ struct RepoDetailView: View {
         snapshot.allBranches = everyBranch
         snapshot.selectedBranch = branchFilter
 
-        if sectionAtStart == 1 {
+        if sectionAtStart == 1, history.isEmpty || historyResetNeeded {
+            isLoadingHistory = true
             let historyData = await Task.detached { () -> HistoryData in
                 do {
                     let commits = try GitClient.history(
                         at: url,
+                        limit: historyPageSize,
                         allBranches: everyBranch,
                         ref: everyBranch ? branchFilter : nil
                     )
@@ -506,10 +562,13 @@ struct RepoDetailView: View {
                     return HistoryData(commits: [], error: error.localizedDescription)
                 }
             }.value
+            isLoadingHistory = false
             guard generation == loadGeneration else { return }
             loadError = historyData.error
             if historyData.error == nil {
                 history = historyData.commits
+                historyHasMore = historyData.commits.count >= historyPageSize
+                historyResetNeeded = false
                 snapshot.history = historyData.commits
             }
         }
@@ -537,6 +596,54 @@ struct RepoDetailView: View {
 
         snapshot.savedAt = Date()
         RepoDetailCache.save(snapshot, for: name)
+    }
+
+    private func resetHistory() {
+        history = []
+        historyHasMore = false
+        historyResetNeeded = true
+        isLoadingMoreHistory = false
+    }
+
+    private func loadMoreHistory() async {
+        guard !isLoadingMoreHistory, historyHasMore else { return }
+        isLoadingMoreHistory = true
+        let offset = history.count
+        let url = repoURL
+        let everyBranch = allBranches
+        let branchFilter = selectedBranch
+        let page = await Task.detached { () -> HistoryData in
+            do {
+                let commits = try GitClient.history(
+                    at: url,
+                    limit: historyPageSize,
+                    allBranches: everyBranch,
+                    ref: everyBranch ? branchFilter : nil,
+                    offset: offset
+                )
+                return HistoryData(commits: commits, error: nil)
+            } catch {
+                return HistoryData(commits: [], error: error.localizedDescription)
+            }
+        }.value
+        isLoadingMoreHistory = false
+        guard offset == history.count,
+              everyBranch == allBranches,
+              branchFilter == selectedBranch else { return }
+        loadError = page.error
+        if page.error == nil {
+            if page.commits.isEmpty {
+                historyHasMore = false
+            } else {
+                history.append(contentsOf: page.commits)
+                historyHasMore = page.commits.count >= historyPageSize
+                if var snapshot = RepoDetailCache.load(name) {
+                    snapshot.history = history
+                    snapshot.savedAt = Date()
+                    RepoDetailCache.save(snapshot, for: name)
+                }
+            }
+        }
     }
 
     private struct HeaderData {

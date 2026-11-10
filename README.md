@@ -23,6 +23,7 @@ so other editors can modify files.
 - Clone HTTPS repositories and initialize local repositories
 - Commit, stage, unstage, fetch, pull, and push
 - Browse commit history, branch graphs, and commit diffs
+- Large histories load in pages with a bottom loading indicator
 - Use a dropdown branch picker for long branch lists, with all local and remote-tracking branches available
 - Checkout a selected local branch, or create a local tracking branch from a remote branch
 - Colorized commit diffs: additions in green, deletions in red, hunk headers in blue,
