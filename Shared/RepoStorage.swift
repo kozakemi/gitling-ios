@@ -7,10 +7,9 @@ enum RepoStorage {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
     }
 
-    /// True when the workspace is exposed through the app's Documents folder rather than
-    /// the File Provider. This is the case on the simulator and on builds signed without
-    /// the App Groups entitlement. In both cases the File Provider extension is ignored
-    /// by the system, so document sharing is the only way the Files app can see the repos.
+    /// Storage policy, independent of the Files presentation. Simulators keep
+    /// their existing Documents workspace and publish its bookmarks through the
+    /// App Group so the signed File Provider can access the same live files.
     static var usesDocumentsFolder: Bool {
         liveBase().standardizedFileURL.path == documentsBase().standardizedFileURL.path
     }
@@ -18,7 +17,6 @@ enum RepoStorage {
     /// Where new repositories are written. The File Provider can only read the app group,
     /// so that is the live location whenever the entitlement is present.
     static func repositoriesRoot() -> URL {
-        publish()
         return ensure(liveBase().appendingPathComponent("repositories", isDirectory: true))
     }
 
@@ -28,7 +26,6 @@ enum RepoStorage {
     }
 
     static func storageBase() -> URL {
-        publish()
         if usesDocumentsFolder {
             // Bookmarks are an implementation detail; keep them out of the folder that
             // the Files app shows under On My iPhone.
@@ -68,8 +65,10 @@ enum RepoStorage {
         }
     }
 
+    private static let migration: Void = synchronize()
+
     static func migrateLegacyRepositoriesIfNeeded() {
-        _ = repositoriesRoot()
+        _ = migration
     }
 
     private static func applicationSupportBase() -> URL {
@@ -82,9 +81,9 @@ enum RepoStorage {
 
     private static func liveBase() -> URL {
         #if targetEnvironment(simulator)
-        // Simulator installs are ad-hoc signed and the Files extension cannot obtain the
-        // App Group container, even though the app itself can. Store the visible copy in
-        // Documents so the Files app still has a Gitling entry.
+        // Keep existing simulator workspaces in place. ProviderWorkspace exposes
+        // these host-owned paths to the extension; never use the extension's own
+        // Documents directory or migrate Git data merely to enable Files access.
         return documentsBase()
         #else
         // Sideloaded/unsigned builds lose the App Groups entitlement. Fall back to the

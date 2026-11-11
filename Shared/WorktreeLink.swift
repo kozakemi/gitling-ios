@@ -43,13 +43,23 @@ enum WorktreeLink {
         RepoStorage.removeLink(fileName: safeFileName(repoName))
     }
 
-    static func begin(repoName: String) -> Access? {
-        let file = directory().appendingPathComponent(safeFileName(repoName))
+    static func begin(repoName: String, storageBase: URL? = nil) -> Access? {
+        let file = directory(base: storageBase).appendingPathComponent(safeFileName(repoName))
         guard let data = try? Data(contentsOf: file) else { return nil }
         return try? makeAccess(from: data, repoName: repoName)
     }
 
-    static func makeAccess(from data: Data, repoName: String) throws -> Access {
+    /// Destructive single-file recovery must not silently fall back to the app
+    /// sandbox or recreate a missing linked workspace while resolving a bookmark.
+    static func beginForFileRestore(repoName: String) throws -> Access? {
+        let file = directory().appendingPathComponent(safeFileName(repoName))
+        let data: Data
+        do { data = try Data(contentsOf: file) }
+        catch CocoaError.fileReadNoSuchFile { return nil }
+        return try makeAccess(from: data, repoName: repoName, createWorkingDirectory: false)
+    }
+
+    static func makeAccess(from data: Data, repoName: String, createWorkingDirectory: Bool = true) throws -> Access {
         var stale = false
         let scope = try URL(
             resolvingBookmarkData: data,
@@ -62,7 +72,12 @@ enum WorktreeLink {
             throw CocoaError(.fileReadNoPermission)
         }
         let work = workDirectory(parent: scope, repoName: repoName)
-        if work.standardizedFileURL.path != scope.standardizedFileURL.path {
+        if !createWorkingDirectory {
+            guard (try? work.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else {
+                if started { scope.stopAccessingSecurityScopedResource() }
+                throw CocoaError(.fileNoSuchFile)
+            }
+        } else if work.standardizedFileURL.path != scope.standardizedFileURL.path {
             do {
                 try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
             } catch {
@@ -87,14 +102,18 @@ enum WorktreeLink {
     static func displayName(repoName: String) -> String? {
         guard let access = begin(repoName: repoName) else { return nil }
         defer { access.stop() }
+        return displayName(for: access)
+    }
+
+    static func displayName(for access: Access) -> String {
         if access.url.standardizedFileURL.path == access.scope.standardizedFileURL.path {
             return access.url.lastPathComponent
         }
         return "\(access.scope.lastPathComponent)/\(access.url.lastPathComponent)"
     }
 
-    private static func directory() -> URL {
-        let base = RepoStorage.storageBase()
+    private static func directory(base: URL? = nil) -> URL {
+        let base = base ?? RepoStorage.storageBase()
         let directory = base.appendingPathComponent("worktree-links", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory

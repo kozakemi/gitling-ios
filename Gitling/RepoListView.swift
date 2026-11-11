@@ -31,14 +31,15 @@ struct RepoListView: View {
                 List(selection: $selection) {
                     Section {
                         ForEach(filteredRepos) { repo in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(repo.name)
-                                    .font(.headline)
-                                Text(subtitle(repo))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            NavigationLink(value: repo.name) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(repo.name)
+                                        .font(.headline)
+                                    Text(subtitle(repo))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            .tag(repo.name)
                             .swipeActions {
                                 Button("Delete", role: .destructive) {
                                     pendingDelete = repo.name
@@ -76,6 +77,7 @@ struct RepoListView: View {
                 }
                 .refreshable { await store.reload() }
             }
+            .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
             .background(Color(.systemGroupedBackground))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -88,7 +90,7 @@ struct RepoListView: View {
                 }
             }
         } detail: {
-            NavigationStack {
+            RepositoryDetailNavigation(selection: selection) {
                 if let selection, store.repos.contains(where: { $0.name == selection }) {
                     RepoDetailView(name: selection)
                 } else {
@@ -224,7 +226,7 @@ struct RepoListView: View {
     }
 
     private var detailDescription: Text {
-        if RepoStorage.usesDocumentsFolder {
+        if !FileProviderRegistration.usesProviderLocation {
             return Text("Repositories are available in the Files app under On My iPhone → Gitling.")
         }
         return Text("Choose a folder in the Files app when cloning, or turn on the Gitling location.")
@@ -270,6 +272,8 @@ private struct AddRepoSheet: View {
     @State private var pickFolder = false
     @State private var repoQuery = ""
     @State private var sshKeyID = ""
+    @State private var importBookmark: Data?
+    @State private var importFolderName: String?
 
     var body: some View {
         NavigationStack {
@@ -277,8 +281,19 @@ private struct AddRepoSheet: View {
                 Picker("Action", selection: $kind) {
                     Text("New Local Repository").tag(1)
                     Text("Clone").tag(0)
+                    Text("Copy Import").tag(2)
                 }
-                if kind == 0 {
+                if kind == 2 {
+                    Section("Import Source") {
+                        Button("Choose Repository Folder") { pickFolder = true }
+                        if let importFolderName { LabeledContent("Source Folder", value: importFolderName) }
+                        TextField("Local Name", text: $name).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Text("Copies the working files and complete Git data into Gitling. The source folder stays unchanged.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        Text("Choose a self-contained repository or a bare repository. External Git directories and shared object stores are not supported.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else if kind == 0 {
                     Section("Repository Source") {
                         Picker("Account", selection: $source) {
                             Text("Enter URL manually").tag("manual")
@@ -347,29 +362,31 @@ private struct AddRepoSheet: View {
                         }
                     }
                 }
-                Section("Working Folder") {
-                    if folderName != nil {
-                        LabeledContent("Files Location", value: folderDisplay)
-                        Button("Inside Gitling") {
-                            folderBookmark = nil
-                            self.folderName = nil
+                if kind != 2 {
+                    Section("Working Folder") {
+                        if folderName != nil {
+                            LabeledContent("Files Location", value: folderDisplay)
+                            Button("Inside Gitling") {
+                                folderBookmark = nil
+                                self.folderName = nil
+                            }
+                        } else {
+                            Button("Choose Folder") { pickFolder = true }
                         }
-                    } else {
-                        Button("Choose Folder") { pickFolder = true }
+                        Text("A folder with the repository name is created inside the location you choose. Git data stays in Gitling, so that folder does not get a .git directory.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    Text("A folder with the repository name is created inside the location you choose. Git data stays in Gitling, so that folder does not get a .git directory.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(kind == 0 ? "Clone" : "New Local Repository")
+            .navigationTitle(kind == 2 ? String(localized: "Copy Import") : (kind == 0 ? String(localized: "Clone") : String(localized: "New Local Repository")))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { submit() }
+                    Button(kind == 2 ? String(localized: "Import") : String(localized: "Create")) { submit() }
                         .disabled(!canSubmit)
                 }
             }
@@ -389,8 +406,17 @@ private struct AddRepoSheet: View {
                     let accessing = url.startAccessingSecurityScopedResource()
                     defer { if accessing { url.stopAccessingSecurityScopedResource() } }
                     do {
-                        folderBookmark = try WorktreeLink.bookmark(for: url)
-                        folderName = url.lastPathComponent
+                        let bookmark = try WorktreeLink.bookmark(for: url)
+                        if kind == 2 {
+                            importBookmark = bookmark
+                            importFolderName = url.lastPathComponent
+                            if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                name = url.lastPathComponent.hasSuffix(".git") ? String(url.lastPathComponent.dropLast(4)) : url.lastPathComponent
+                            }
+                        } else {
+                            folderBookmark = bookmark
+                            folderName = url.lastPathComponent
+                        }
                     } catch {
                         store.alert = String(localized: "Could not use that folder.")
                     }
@@ -485,6 +511,7 @@ private struct AddRepoSheet: View {
 
     private var canSubmit: Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if kind == 2 { return importBookmark != nil && !trimmedName.isEmpty }
         if kind == 1 { return !trimmedName.isEmpty }
         return !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !resolvedName.isEmpty
     }
@@ -499,7 +526,10 @@ private struct AddRepoSheet: View {
     }
 
     private func submit() {
-        if kind == 0 {
+        if kind == 2 {
+            guard let importBookmark else { return }
+            store.importRepository(name: name, sourceBookmark: importBookmark)
+        } else if kind == 0 {
             store.clone(
                 url: url,
                 name: resolvedName,
@@ -544,7 +574,7 @@ private struct SettingsSheet: View {
                         }
                     }
                     Group {
-                        if RepoStorage.usesDocumentsFolder {
+                        if !FileProviderRegistration.usesProviderLocation {
                             Text("Repositories are available in the Files app under On My iPhone → Gitling.")
                         } else {
                             Text("In the Files app, open Browse, tap the More button, tap Edit, and turn on Gitling.")

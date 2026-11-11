@@ -13,7 +13,23 @@
 
 Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克隆仓库、查看历史和差异、提交并推送，同时把工作区放进「文件」App，方便其他编辑器修改文件。
 
+## 进度与后续计划
+
+[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-11）。
+
 ## 功能
+
+- 复制导入已有仓库，保留源目录、完整 Git 数据及未提交状态；支持裸仓库离线转换
+
+- 状态页逐文件暂存、取消暂存，并分别查看工作区和暂存区差异
+- 逐文件放弃未暂存修改及恢复已删除文件，保留索引和已暂存内容（[说明](docs/file-restore.md)）
+- Stash 保存、列表、应用、恢复并删除，支持包含未跟踪文件
+- Merge/rebase/cherry-pick 冲突列表、双方与工作文件查看、外部编辑导入、确认解决、继续/中止及重启恢复（[说明](docs/conflict-resolution.md)）
+- 子模块状态、初始化、更新及递归处理，保护本地修改并支持失败后重试（[说明](docs/submodules.md)）
+- Tag 列表、详情及安全检出，明确 detached HEAD 并保护未提交修改（[说明](docs/tags-and-diff-layout.md)）
+- 提交正文、作者/邮箱和 OID 的完整历史搜索，以及递归文件名/路径搜索，支持取消和分页（[说明](docs/repository-search.md)）
+- 支持 `feature/topic` 分支名、重命名，以及安全删除已合并分支
+- 设置或清除上游分支；Fetch/Push 可选择远程，默认同步跟随上游及其实际分支名
 
 - 克隆 HTTPS 仓库，本地初始化仓库
 - 提交、暂存、取消暂存、拉取、抓取、推送
@@ -23,7 +39,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - 可以检出选中的本地分支；选择远程分支时可创建同名本地跟踪分支并检出
 - 提交差异按行着色：新增绿色、删除红色、hunk 蓝色、文件头灰色
 - 中文、英文、日语界面
-- 通过 File Provider 在「文件」App 中提供 Gitling 位置
+- 通过 File Provider 在「文件」App 中提供 Gitling 位置（[Duo 模拟器访问说明](docs/duo-files-access.md)）
 - 支持关联「文件」App 中的外部文件夹作为工作区
 - GitHub Device Flow 登录
 - GitLab.com 和自建 GitLab，支持多个同平台账户
@@ -81,11 +97,7 @@ GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发�
 ## 测试与检查
 
 ```sh
-xcodebuild \
-  -project Gitling.xcodeproj \
-  -scheme Gitling \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  test
+./scripts/test.sh
 ```
 
 本地化覆盖检查：
@@ -120,6 +132,10 @@ docs/                    截图
 - 同一个 GitHub/GitLab 平台可以绑定多个账户。
 
 ## 已知限制
+
+- 复制导入首版要求独立 Git 数据目录；外置 `.git`、共享对象库及 promisor 依赖会明确拒绝，避免导入不完整或写回源目录。
+
+- Stash 恢复发生冲突时保留原 Stash 和冲突内容；可通过冲突解决界面查看内容、导入编辑结果并逐个确认解决。
 
 - SSH 私钥只支持导入，暂不支持在 App 内生成或导出；口令保存在 Keychain。
 - SSH 主机密钥采用首次信任（TOFU）。主机密钥变化会拒绝连接，但暂未提供 known_hosts 管理界面。

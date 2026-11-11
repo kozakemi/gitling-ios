@@ -31,28 +31,49 @@ final class RepoStore: ObservableObject {
 
     var githubBusy: Bool { githubTask != nil && githubPrompt == nil }
 
-    init() {
-        RepoStorage.migrateLegacyRepositoriesIfNeeded()
-        root = RepoStorage.repositoriesRoot()
-        if !RepoStorage.usesDocumentsFolder {
-            FileProviderRegistration.register()
-        }
+    init(root: URL? = nil, reloadOnStart: Bool = true) {
+        self.root = root ?? RepoStorage.repositoriesRoot()
         userName = UserDefaults.standard.string(forKey: Keys.name) ?? ""
         userEmail = UserDefaults.standard.string(forKey: Keys.email) ?? ""
         loadAccounts()
         loadSSHKeys()
         loadCachedRepos()
-        Task { await reload() }
+        if reloadOnStart {
+            Task {
+                if root == nil {
+                    await Task.detached { RepoStorage.migrateLegacyRepositoriesIfNeeded() }.value
+                    if FileProviderRegistration.usesProviderLocation { FileProviderRegistration.register() }
+                }
+                await reload()
+            }
+        }
     }
 
-    func reload() async {
+    func reload(repository name: String? = nil) async {
         reloadGeneration += 1
         let generation = reloadGeneration
         let root = root
-        let quickNames = GitClient.repositoryNames(root: root)
+        if let name {
+            let summary = await Task.detached { () -> RepoSummary? in
+                let url = root.appendingPathComponent(name)
+                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+                return GitClient.summary(at: url) ?? RepoSummary(
+                    name: name, branch: nil, isDirty: false, origin: nil, unavailable: true
+                )
+            }.value
+            guard generation == reloadGeneration else { return }
+            var updated = repos.filter { $0.name != name }
+            if let summary { updated.append(summary) }
+            updated.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            if repos != updated { repos = updated }
+            saveCachedRepos()
+            return
+        }
+        let quickNames = await Task.detached { GitClient.repositoryNames(root: root) }.value
+        guard generation == reloadGeneration else { return }
         if !quickNames.isEmpty {
             let existing = Dictionary(uniqueKeysWithValues: repos.map { ($0.name, $0) })
-            repos = quickNames.map { name in
+            let quick = quickNames.map { name in
                 existing[name] ?? RepoSummary(
                     name: name,
                     branch: nil,
@@ -61,6 +82,7 @@ final class RepoStore: ObservableObject {
                     unavailable: false
                 )
             }
+            if repos != quick { repos = quick }
         }
         let repos = await Task.detached { GitClient.list(root: root) }.value
         // Pull-to-refresh can overlap with the scenePhase refresh. Only the latest
@@ -164,10 +186,15 @@ final class RepoStore: ObservableObject {
     func account(for urlString: String, repoName: String? = nil) -> RemoteAccount? {
         if let repoName,
            let id = linkedAccountID(for: repoName),
-           let linked = account(id: id) {
+           let linked = account(id: id), matchesTransport(linked, url: urlString) {
             return linked
         }
-        return accounts.first { $0.matches(urlString) }
+        return accounts.first { matchesTransport($0, url: urlString) }
+    }
+
+    private func matchesTransport(_ account: RemoteAccount, url: String) -> Bool {
+        if SSHURL.isSSH(url) { return account.instanceURL?.host?.lowercased() == SSHURL.host(url) }
+        return account.matches(url)
     }
 
     func accountUsername(for urlString: String, repoName: String? = nil) -> String? {
@@ -253,13 +280,7 @@ final class RepoStore: ObservableObject {
     }
 
     private func lfsAuth(for urlString: String, repoName: String) -> LFSAuth? {
-        let matched: RemoteAccount?
-        if SSHURL.isSSH(urlString) {
-            let host = SSHURL.host(urlString)
-            matched = accounts.first { $0.instanceURL?.host?.lowercased() == host }
-        } else {
-            matched = account(for: urlString, repoName: repoName)
-        }
+        let matched = account(for: urlString, repoName: repoName)
         guard let matched, let token = secret(for: matched), !token.isEmpty else { return nil }
         return LFSAuth(
             username: matched.provider == .gitlab ? "oauth2" : matched.username,
@@ -435,7 +456,8 @@ final class RepoStore: ObservableObject {
             username: username,
             secret: secret
         )
-        run(String(localized: "Cloning…"), focus: name, linkAccount: chosen, linkSSHKey: chosenSSHKey) {
+        let suppliedSecret = secret
+        run(String(localized: "Cloning…"), repository: name, publishStorage: true, focus: name, linkAccount: chosen, linkSSHKey: chosenSSHKey) {
             try GitClient.clone(
                 url: url,
                 name: name,
@@ -446,7 +468,7 @@ final class RepoStore: ObservableObject {
                 lfsAuth: lfs,
                 worktreeBookmark: worktreeBookmark
             )
-            if chosen == nil, let host = GitClient.host(of: url), !secret.isEmpty {
+            if chosen == nil, let host = GitClient.host(of: url), !suppliedSecret.isEmpty {
                 KeychainStore.save(host: host, username: creds.username, secret: creds.secret)
             }
         }
@@ -535,8 +557,28 @@ final class RepoStore: ObservableObject {
     func create(name: String, worktreeBookmark: Data? = nil) {
         let root = root
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        run(String(localized: "Creating…"), focus: name) {
+        run(String(localized: "Creating…"), repository: name, publishStorage: true, focus: name) {
             try GitClient.initialize(name: name, root: root, worktreeBookmark: worktreeBookmark)
+        }
+    }
+
+    func importRepository(name: String, sourceBookmark: Data) {
+        let root = root
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        run(String(localized: "Importing…"), repository: name, publishStorage: true, resetLinks: true, focus: name) {
+            var stale = false
+            let source = try URL(resolvingBookmarkData: sourceBookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+            let started = source.startAccessingSecurityScopedResource()
+            defer { if started { source.stopAccessingSecurityScopedResource() } }
+            let coordinator = NSFileCoordinator()
+            var coordinationError: NSError?
+            var outcome: Result<Void, Error>?
+            coordinator.coordinate(readingItemAt: source, options: .withoutChanges, error: &coordinationError) { location in
+                outcome = Result { try GitClient.importRepository(from: location, name: name, root: root) }
+            }
+            if let coordinationError { throw coordinationError }
+            guard let outcome else { throw RepositoryImporter.Failure.invalidSource }
+            try outcome.get()
         }
     }
 
@@ -544,7 +586,7 @@ final class RepoStore: ObservableObject {
         let url = root.appendingPathComponent(name, isDirectory: true)
         removeRepoLink(name)
         RepoDetailCache.remove(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name, publishStorage: true) {
             try RepoWriteLock.withLock(at: url) {
                 try RepoStorage.removeRepository(named: name)
                 WorktreeLink.remove(repoName: name)
@@ -554,20 +596,20 @@ final class RepoStore: ObservableObject {
 
     func link(name: String, bookmark: Data) {
         let url = repoURL(name)
-        run(String(localized: "Working…"), focus: name) {
+        run(String(localized: "Working…"), repository: name, publishStorage: true, focus: name) {
             try GitClient.link(at: url, bookmark: bookmark)
         }
     }
 
     func unlink(name: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…"), focus: name) {
+        run(String(localized: "Working…"), repository: name, publishStorage: true, focus: name) {
             try GitClient.unlink(at: url)
         }
     }
 
     func filesLocationExplanation() async -> String {
-        if RepoStorage.usesDocumentsFolder {
+        if !FileProviderRegistration.usesProviderLocation {
             return String(localized: "In the Files app, open On My iPhone, then Gitling.")
         }
         return await withCheckedContinuation { continuation in
@@ -580,67 +622,151 @@ final class RepoStore: ObservableObject {
     }
 
     func stageAll(name: String) {
+        runWithRemote(String(localized: "Working…"), name: name) { url, _, lfs in
+            try GitClient.stageAll(at: url, lfsAuth: lfs)
+        }
+    }
+
+    func stage(name: String, entry: StatusEntry) {
+        runWithRemote(String(localized: "Working…"), name: name) { url, _, lfs in
+            try GitClient.stage(at: url, path: entry.path, originalPath: entry.originalPath, lfsAuth: lfs)
+        }
+    }
+
+    func updateSubmodules(name: String, action: SubmoduleAction, recursive: Bool, initializeMissing: Bool,
+                          resume: Bool = false, selectedAccounts: [String: UUID] = [:], selectedSSHKeys: [String: UUID] = [:], overrides: [String: SubmoduleCredentials] = [:]) {
         let url = repoURL(name)
-        let origin = GitClient.summary(at: url)?.origin
-        let lfs = lfsAuth(for: origin ?? "", repoName: name)
-        run(String(localized: "Working…")) { try GitClient.stageAll(at: url, lfsAuth: lfs) }
+        let accounts = accounts.compactMap { account -> SubmoduleAccountSecret? in
+            guard let secret = secret(for: account) else { return nil }
+            return .init(account: account, secret: secret)
+        }.sorted { $0.account.id == linkedAccountID(for: name) && $1.account.id != linkedAccountID(for: name) }
+        var keys = selectedSSHKeys.compactMapValues { sshKeyMaterial(for: $0) }
+        // The repository's linked key is scoped to its own SSH authority.
+        if let origin = try? GitClient.originURL(url), SSHURL.isSSH(origin),
+           let authority = SubmoduleAuth.authority(origin), keys[authority] == nil,
+           let key = sshKeyMaterial(for: linkedSSHKeyID(for: name)) { keys[authority] = key }
+        let router = SubmoduleCredentialRouter(accounts: accounts, selectedAccounts: selectedAccounts, sshKeys: keys, overrides: overrides)
+        let auth = SubmoduleAuth(resolve: { router.credentials(for: $0) })
+        run(String(localized: "Updating submodules…"), repository: name, publishStorage: true) {
+            try GitClient.updateSubmodules(at: url, action: action, recursive: recursive, initializeMissing: initializeMissing, resume: resume, auth: auth)
+        }
+    }
+
+    func endSubmoduleUpdate(name: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.endSubmoduleUpdate(at: url) }
+    }
+
+    func restoreFile(name: String, plan: FileRestorePlan) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name, publishStorage: true) {
+            try GitClient.restoreFile(at: url, plan: plan)
+        }
+    }
+
+    func unstage(name: String, entry: StatusEntry) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) {
+            try GitClient.unstage(at: url, path: entry.path, originalPath: entry.originalPath)
+        }
+    }
+
+    func saveStash(name: String, message: String, includeUntracked: Bool) {
+        let url = repoURL(name)
+        let userName = userName
+        let userEmail = userEmail
+        run(String(localized: "Working…"), repository: name) {
+            try GitClient.saveStash(at: url, message: message, includeUntracked: includeUntracked, name: userName, email: userEmail)
+        }
+    }
+
+    func applyStash(name: String, oid: String, pop: Bool) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.applyStash(at: url, oid: oid, pop: pop) }
+    }
+
+    func dropStash(name: String, oid: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.dropStash(at: url, oid: oid) }
+    }
+
+    func renameBranch(name: String, branch: String, to newName: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.renameBranch(at: url, branch: branch, to: newName) }
+    }
+
+    func deleteBranch(name: String, branch: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.deleteBranch(at: url, branch: branch) }
+    }
+
+    func setUpstream(name: String, branch: String, upstream: String?) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.setUpstream(at: url, branch: branch, upstream: upstream) }
     }
 
     func unstageAll(name: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) { try GitClient.unstageAll(at: url) }
+        run(String(localized: "Working…"), repository: name) { try GitClient.unstageAll(at: url) }
     }
 
     func commit(name: String, message: String) {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
-        let origin = GitClient.summary(at: url)?.origin
-        let lfs = lfsAuth(for: origin ?? "", repoName: name)
-        run(String(localized: "Committing…")) {
-            try GitClient.commit(at: url, message: message, name: userName, email: userEmail, lfsAuth: lfs)
+        run(String(localized: "Committing…"), repository: name) {
+            try GitClient.commit(at: url, message: message, name: userName, email: userEmail)
         }
     }
 
     func pull(name: String, username: String, secret: String) {
-        let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
-        let origin = GitClient.summary(at: url)?.origin
-        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
-        let lfs = lfsAuth(for: origin ?? "", repoName: name)
-        run(String(localized: "Pulling…")) {
-            try GitClient.pull(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs, name: userName, email: userEmail)
+        runSync(String(localized: "Pulling…"), name: name, username: username, secret: secret) { url, user, token, ssh, lfs in
+            try GitClient.pull(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, name: userName, email: userEmail)
         }
     }
 
-    func fetch(name: String, username: String, secret: String) {
+    func fetch(name: String, username: String, secret: String, remoteName: String? = nil) {
+        runSync(String(localized: "Fetching…"), name: name, remoteName: remoteName, username: username, secret: secret) { url, user, token, ssh, lfs in
+            try GitClient.fetch(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName)
+        }
+    }
+
+    func checkoutTag(name: String, detail: TagDetail, report: @escaping @MainActor (String?) -> Void) {
+        guard !isBusy else { return }
         let url = repoURL(name)
-        let origin = GitClient.summary(at: url)?.origin
-        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
-        let lfs = lfsAuth(for: origin ?? "", repoName: name)
-        run(String(localized: "Fetching…")) {
-            try GitClient.fetch(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs)
+        isBusy = true
+        statusLine = String(localized: "Working…")
+        Task {
+            let problem = await Task.detached { () -> String? in
+                do { try GitClient.checkoutTag(at: url, tag: detail); return nil }
+                catch { return error.localizedDescription }
+            }.value
+            // Present failures in the owning detail page. A root alert can
+            // dismiss the operations sheet while its confirmation is closing.
+            await finish(nil, repository: name, publishStorage: problem == nil)
+            report(problem)
         }
     }
 
     func checkout(name: String, branch: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.checkout(at: url, branch: branch)
         }
     }
 
     func checkoutRemote(name: String, branch: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.checkoutRemote(at: url, branch: branch)
         }
     }
 
     func createBranch(name: String, branch: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.createBranch(at: url, name: branch, checkout: true)
         }
     }
@@ -649,7 +775,7 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.mergeBranch(at: url, branch: branch, name: userName, email: userEmail)
         }
     }
@@ -658,7 +784,7 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.rebase(at: url, onto: branch, name: userName, email: userEmail)
         }
     }
@@ -667,46 +793,60 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         let userName = userName
         let userEmail = userEmail
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.cherryPick(at: url, commit: commit, name: userName, email: userEmail)
+        }
+    }
+
+    func continueOperation(name: String) {
+        let url = repoURL(name), author = userName, email = userEmail
+        run(String(localized: "Working…"), repository: name) {
+            try GitClient.continueOperation(at: url, name: author, email: email)
+        }
+    }
+
+    func abortOperation(name: String) {
+        let url = repoURL(name)
+        run(String(localized: "Working…"), repository: name) { try GitClient.abortOperation(at: url) }
+    }
+
+    func resolveConflict(name: String, conflict: ConflictFile, delete: Bool) {
+        runWithRemote(String(localized: "Working…"), name: name) { url, _, lfs in
+            try GitClient.resolveConflict(at: url, conflict: conflict, delete: delete, lfsAuth: lfs)
         }
     }
 
     func resetHard(name: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.resetHard(at: url)
         }
     }
 
     func addRemote(name: String, remote: String, url remoteURL: String) {
         let repo = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.addRemote(at: repo, name: remote, url: remoteURL)
         }
     }
 
     func removeRemote(name: String, remote: String) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.removeRemote(at: url, name: remote)
         }
     }
 
     func createWorkItem(name: String, itemName: String, directory: Bool) {
         let url = repoURL(name)
-        run(String(localized: "Working…")) {
+        run(String(localized: "Working…"), repository: name) {
             try GitClient.createWorkItem(at: url, name: itemName, directory: directory)
         }
     }
 
-    func push(name: String, username: String, secret: String) {
-        let url = repoURL(name)
-        let origin = GitClient.summary(at: url)?.origin
-        let ssh = sshKeyMaterial(for: origin ?? "", repoName: name)
-        let lfs = lfsAuth(for: origin ?? "", repoName: name)
-        run(String(localized: "Pushing…")) {
-            try GitClient.push(at: url, username: username, secret: secret, sshKey: ssh, lfsAuth: lfs)
+    func push(name: String, username: String, secret: String, remoteName: String? = nil) {
+        runSync(String(localized: "Pushing…"), name: name, remoteName: remoteName, push: true, username: username, secret: secret) { url, user, token, ssh, lfs in
+            try GitClient.push(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName)
         }
     }
 
@@ -714,8 +854,56 @@ final class RepoStore: ObservableObject {
         root.appendingPathComponent(name, isDirectory: true)
     }
 
+    private func runSync(
+        _ label: String, name: String, remoteName: String? = nil, push: Bool = false, username: String, secret: String,
+        _ work: @escaping @Sendable (URL, String, String, SSHKeyMaterial?, LFSAuth?) throws -> Void
+    ) {
+        guard !isBusy else { return }
+        isBusy = true
+        statusLine = label
+        let url = repoURL(name)
+        Task {
+            do {
+                let remote = try await Task.detached { try GitClient.transportURL(at: url, remoteName: remoteName, push: push) }.value
+                let creds = account(for: remote, repoName: name, username: username, secret: secret)
+                let ssh = sshKeyMaterial(for: remote, repoName: name)
+                let lfs = lfsAuth(for: remote, repoName: name)
+                try await Task.detached { try work(url, creds.username, creds.secret, ssh, lfs) }.value
+                if !secret.isEmpty, let host = GitClient.host(of: remote) {
+                    KeychainStore.save(host: host, username: creds.username, secret: creds.secret)
+                }
+                await finish(nil, repository: name)
+            } catch { await finish(error.localizedDescription, repository: name) }
+        }
+    }
+
+    private func runWithRemote(
+        _ label: String,
+        name: String,
+        _ work: @escaping @Sendable (URL, SSHKeyMaterial?, LFSAuth?) throws -> Void
+    ) {
+        guard !isBusy else { return }
+        isBusy = true
+        statusLine = label
+        let url = repoURL(name)
+        Task {
+            let origin = await Task.detached { (try? GitClient.transportURL(at: url)) ?? "" }.value
+            let ssh = sshKeyMaterial(for: origin, repoName: name)
+            let lfs = lfsAuth(for: origin, repoName: name)
+            do {
+                try await Task.detached { try work(url, ssh, lfs) }.value
+                await finish(nil, repository: name)
+            } catch {
+                await finish(error.localizedDescription, repository: name)
+            }
+        }
+    }
+
     private func run(
         _ label: String,
+        repository: String? = nil,
+        publishStorage: Bool = false,
+        resetLinks: Bool = false,
         focus: String? = nil,
         linkAccount: RemoteAccount? = nil,
         linkSSHKey: SSHKey? = nil,
@@ -727,24 +915,30 @@ final class RepoStore: ObservableObject {
         Task.detached {
             do {
                 try work()
-                await self.finish(nil, focus: focus, linkAccount: linkAccount, linkSSHKey: linkSSHKey)
+                await self.finish(nil, repository: repository, publishStorage: publishStorage, resetLinks: resetLinks, focus: focus, linkAccount: linkAccount, linkSSHKey: linkSSHKey)
             } catch {
-                await self.finish(error.localizedDescription)
+                await self.finish(error.localizedDescription, repository: repository, publishStorage: publishStorage)
             }
         }
     }
 
     private func finish(
         _ error: String?,
+        repository: String? = nil,
+        publishStorage: Bool = false,
+        resetLinks: Bool = false,
         focus: String? = nil,
         linkAccount: RemoteAccount? = nil,
         linkSSHKey: SSHKey? = nil
     ) async {
-        isBusy = false
-        statusLine = ""
         if let error {
             alert = error
         } else {
+            if resetLinks, let repository {
+                removeRepoLink(repository)
+                WorktreeLink.remove(repoName: repository)
+                RepoDetailCache.remove(repository)
+            }
             focusName = focus
             if let focus, let linkAccount {
                 linkRepo(focus, to: linkAccount)
@@ -753,10 +947,14 @@ final class RepoStore: ObservableObject {
                 linkRepoSSHKey(focus, to: linkSSHKey)
             }
         }
+        if publishStorage {
+            await Task.detached { RepoStorage.publish() }.value
+        }
+        await reload(repository: repository)
+        isBusy = false
+        statusLine = ""
         revision += 1
-        RepoStorage.publish()
-        await reload()
-        if !RepoStorage.usesDocumentsFolder {
+        if FileProviderRegistration.usesProviderLocation {
             FileProviderRegistration.signal()
         }
     }

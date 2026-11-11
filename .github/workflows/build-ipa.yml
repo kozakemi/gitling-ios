@@ -32,6 +32,9 @@ jobs:
       - name: Check localizations
         run: ./scripts/check-localizations.py
 
+      - name: Run tests
+        run: ./scripts/test.sh
+
       - name: Build IPA
         run: ./scripts/build-ipa.sh
 

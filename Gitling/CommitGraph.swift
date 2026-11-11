@@ -72,6 +72,12 @@ enum CommitGraph {
 struct CommitGraphMark: View {
     var row: CommitGraph.Row
 
+    static func drawingWidth(columnCount: Int) -> CGFloat {
+        // Keep the same scale for every row while leaving room for commit text
+        // in a narrow split-view detail column. Canvas scales all lane positions.
+        min(CGFloat(max(columnCount, 1)) * 14, 84)
+    }
+
     var body: some View {
         Canvas { context, size in
             let columns = CGFloat(max(row.columnCount, 1))
@@ -110,7 +116,8 @@ struct CommitGraphMark: View {
             let dot = CGRect(x: center(row.lane) - 4, y: midY - 4, width: 8, height: 8)
             context.fill(Path(ellipseIn: dot), with: .color(color(row.lane)))
         }
-        .frame(width: CGFloat(max(row.columnCount, 1)) * 14)
+        .frame(width: Self.drawingWidth(columnCount: row.columnCount))
+        .accessibilityHidden(true)
     }
 
     private func color(_ lane: Int) -> Color {

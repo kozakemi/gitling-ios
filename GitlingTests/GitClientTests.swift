@@ -79,7 +79,7 @@ final class GitClientTests: XCTestCase {
         XCTAssertEqual(changed.map(\.path), ["note.md"])
 
         try GitClient.unlink(at: local)
-        XCTAssertEqual(try String(contentsOf: local.appendingPathComponent("note.md"), encoding: .utf8), "hello\n")
+        XCTAssertEqual(try String(contentsOf: local.appendingPathComponent("note.md"), encoding: .utf8), "edited\n")
         XCTAssertEqual(try String(contentsOf: project.appendingPathComponent("note.md"), encoding: .utf8), "edited\n")
         XCTAssertNil(GitClient.linkedFolderName(at: local))
     }
