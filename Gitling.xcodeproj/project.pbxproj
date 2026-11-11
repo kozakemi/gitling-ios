@@ -137,7 +137,6 @@
 				A10000000000000000000008 /* Frameworks */,
 				A10000000000000000000009 /* Resources */,
 				A1000000000000000000003B /* Embed Foundation Extensions */,
-				A10000000000000000000041 /* Sign simulator App Group */,
 			);
 			buildRules = (
 			);
@@ -282,24 +281,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		A10000000000000000000041 /* Sign simulator App Group */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Sign simulator App Group";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"$PLATFORM_NAME\" != \"iphonesimulator\" ]; then\n  exit 0\nfi\nAPP=\"$BUILT_PRODUCTS_DIR/$WRAPPER_NAME\"\nEXT=\"$APP/PlugIns/GitlingFileProvider.appex\"\nif [ -d \"$EXT\" ]; then\n  codesign --force --sign - --entitlements \"$SRCROOT/GitlingFileProvider/GitlingFileProvider.entitlements\" --timestamp=none \"$EXT\"\nfi\ncodesign --force --sign - --entitlements \"$SRCROOT/Gitling/Gitling.entitlements\" --timestamp=none \"$APP\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -345,7 +326,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Gitling/Gitling.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
@@ -381,7 +361,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Gitling/Gitling.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
@@ -492,7 +471,6 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GitlingFileProvider/GitlingFileProvider.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -519,7 +497,6 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GitlingFileProvider/GitlingFileProvider.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;

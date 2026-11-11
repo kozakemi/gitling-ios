@@ -108,11 +108,11 @@ enum WorkingTree {
     static func children(root: URL, identifier: String, workRoot: URL? = nil) throws -> [Node] {
         let parent = try node(root: root, identifier: identifier, workRoot: workRoot)
         guard parent.isDirectory else { return [] }
-        let urls = (try? FileManager.default.contentsOfDirectory(
+        let urls = try FileManager.default.contentsOfDirectory(
             at: parent.fileURL,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: []
-        )) ?? []
+        )
         var children: [Node] = []
         for url in urls {
             if url.lastPathComponent == ".git" { continue }

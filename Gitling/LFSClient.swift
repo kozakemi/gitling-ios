@@ -115,6 +115,7 @@ enum LFSClient {
     }
 
     private static let manifestName = "lfs-pointers.json"
+    private static let contentCache = LFSContentCache()
 
     static func isPointer(_ data: Data) -> LFSPointer? {
         guard data.count <= 1024,
@@ -122,7 +123,7 @@ enum LFSClient {
         return LFSPointer.parse(text)
     }
 
-    static func smudge(at repoURL: URL, remoteURL: String, auth: LFSAuth?) throws {
+    static func smudge(at repoURL: URL, gitDirectory: URL? = nil, remoteURL: String, auth: LFSAuth?, session: URLSession = .shared) throws {
         let pointers = try pointerFiles(at: repoURL)
         guard !pointers.isEmpty else { return }
         var unique: [String: LFSPointer] = [:]
@@ -132,7 +133,8 @@ enum LFSClient {
         let objects = try downloadObjects(
             Array(unique.values),
             remoteURL: remoteURL,
-            auth: auth
+            auth: auth,
+            session: session
         )
         for (path, pointer) in pointers {
             guard let data = objects[pointer.oid] else { continue }
@@ -146,14 +148,15 @@ enum LFSClient {
             )
             try data.write(to: destination, options: .atomic)
         }
-        try saveManifest(pointers, at: repoURL)
+        try saveManifest(pointers, at: repoURL, gitDirectory: gitDirectory)
     }
 
-    static func clean(at repoURL: URL, remoteURL: String, auth: LFSAuth?) throws -> [String: LFSPointer] {
-        let previous = loadManifest(at: repoURL)
-        let patterns = lfsPatterns(at: repoURL)
-        let candidates = Set(previous.keys).union(
-            patterns.isEmpty ? [] : worktreeFiles(at: repoURL).filter { path in
+    static func clean(at repoURL: URL, gitDirectory: URL? = nil, remoteURL: String, auth: LFSAuth?, session: URLSession = .shared, paths: Set<String>? = nil) throws -> [String: LFSPointer] {
+        let previous = loadManifest(at: repoURL, gitDirectory: gitDirectory)
+        let patterns = lfsPatterns(at: repoURL, paths: paths)
+        let selected = paths ?? (patterns.isEmpty ? Set(previous.keys) : Set(worktreeFiles(at: repoURL)))
+        let candidates = Set(previous.keys).intersection(selected).union(
+            patterns.isEmpty ? [] : selected.filter { path in
                 patterns.contains { matches(pattern: $0, path: path) }
             }
         )
@@ -177,37 +180,39 @@ enum LFSClient {
             uploads[oid] = data
         }
 
-        guard !current.isEmpty else {
-            try? FileManager.default.removeItem(at: manifestURL(repoURL))
-            return [:]
-        }
-
         if !uploads.isEmpty {
-            try uploadObjects(uploads, remoteURL: remoteURL, auth: auth)
+            try uploadObjects(uploads, remoteURL: remoteURL, auth: auth, session: session)
         }
-        try saveManifest(current, at: repoURL)
+        var manifest = paths == nil ? [:] : previous
+        if let paths { for path in paths { manifest.removeValue(forKey: path) } }
+        manifest.merge(current) { _, new in new }
+        if manifest.isEmpty {
+            try? FileManager.default.removeItem(at: manifestURL(repoURL, gitDirectory: gitDirectory))
+        } else {
+            try saveManifest(manifest, at: repoURL, gitDirectory: gitDirectory)
+        }
         return current
     }
 
     /// Return the paths whose worktree contents still match their LFS pointer.
     /// libgit2 compares the smudged bytes with the pointer blob in the index,
     /// so those paths must be treated as clean in the status UI.
-    static func cleanPaths(at repoURL: URL) -> Set<String> {
-        let pointers = loadManifest(at: repoURL)
+    static func cleanPaths(at repoURL: URL, gitDirectory: URL? = nil, candidates: Set<String>? = nil, indexPointers: [String: LFSPointer]? = nil) -> Set<String> {
+        if let candidates, candidates.isEmpty { return [] }
+        let pointers = indexPointers ?? loadManifest(at: repoURL, gitDirectory: gitDirectory)
         guard !pointers.isEmpty else { return [] }
         var clean: Set<String> = []
         for (path, pointer) in pointers {
-            let url = repoURL.appendingPathComponent(path)
-            guard let data = try? Data(contentsOf: url) else { continue }
-            if data.count == pointer.size, sha256(data) == pointer.oid {
+            if let candidates, !candidates.contains(path) { continue }
+            if contentCache.matches(repoURL.appendingPathComponent(path), pointer: pointer) {
                 clean.insert(path)
             }
         }
         return clean
     }
 
-    static func removeManifest(at repoURL: URL) {
-        try? FileManager.default.removeItem(at: manifestURL(repoURL))
+    static func removeManifest(at repoURL: URL, gitDirectory: URL? = nil) {
+        try? FileManager.default.removeItem(at: manifestURL(repoURL, gitDirectory: gitDirectory))
     }
 
     private static func pointerFiles(at repoURL: URL) throws -> [String: LFSPointer] {
@@ -219,7 +224,7 @@ enum LFSClient {
         ) else { return [:] }
         var result: [String: LFSPointer] = [:]
         for case let url as URL in enumerator {
-            if url.path.contains("/.git/") || url.lastPathComponent == ".git" { continue }
+            if url.lastPathComponent == ".git" { enumerator.skipDescendants(); continue }
             let values = try? url.resourceValues(forKeys: Set(keys))
             guard values?.isRegularFile == true,
                   (values?.fileSize ?? 0) <= 1024 else { continue }
@@ -251,6 +256,8 @@ enum LFSClient {
         }
 
         guard var host, !host.isEmpty else { throw LFSError.endpoint }
+        if !path.hasPrefix("/") { path = "/" + path }
+        if scheme == "ssh" { scheme = "https" }
         if path.hasSuffix("/") { path.removeLast() }
         if !path.hasSuffix(".git") { path += ".git" }
 
@@ -281,13 +288,14 @@ enum LFSClient {
     private static func downloadObjects(
         _ pointers: [LFSPointer],
         remoteURL: String,
-        auth: LFSAuth?
+        auth: LFSAuth?,
+        session: URLSession
     ) throws -> [String: Data] {
         let endpoint = try endpoint(remoteURL: remoteURL, instanceBaseURL: auth?.instanceBaseURL)
-        let response = try batch(operation: "download", pointers: pointers, endpoint: endpoint, auth: auth)
+        let response = try batch(operation: "download", pointers: pointers, endpoint: endpoint, auth: auth, session: session)
         var result: [String: Data] = [:]
         for object in response.objects {
-            if let error = object.error {
+            if object.error != nil {
                 throw LFSError.server
             }
             guard let action = object.actions?["download"],
@@ -300,7 +308,7 @@ enum LFSClient {
             for (key, value) in action.header ?? [:] {
                 request.setValue(value, forHTTPHeaderField: key)
             }
-            let data = try data(for: request)
+            let data = try data(for: request, session: session)
             guard sha256(data) == object.oid else { throw LFSError.invalidObject }
             result[object.oid] = data
         }
@@ -310,11 +318,12 @@ enum LFSClient {
     private static func uploadObjects(
         _ objects: [String: Data],
         remoteURL: String,
-        auth: LFSAuth?
+        auth: LFSAuth?,
+        session: URLSession
     ) throws {
         let endpoint = try endpoint(remoteURL: remoteURL, instanceBaseURL: auth?.instanceBaseURL)
         let pointers = objects.map { LFSPointer.make(oid: $0.key, size: $0.value.count) }
-        let response = try batch(operation: "upload", pointers: pointers, endpoint: endpoint, auth: auth)
+        let response = try batch(operation: "upload", pointers: pointers, endpoint: endpoint, auth: auth, session: session)
         for object in response.objects {
             if object.error != nil { throw LFSError.server }
             guard let action = object.actions?["upload"],
@@ -330,7 +339,7 @@ enum LFSClient {
             for (key, value) in action.header ?? [:] {
                 request.setValue(value, forHTTPHeaderField: key)
             }
-            _ = try data(for: request)
+            _ = try data(for: request, session: session)
             if let verify = object.actions?["verify"], let verifyURL = URL(string: verify.href) {
                 var verifyRequest = URLRequest(url: verifyURL)
                 verifyRequest.httpMethod = "POST"
@@ -342,7 +351,7 @@ enum LFSClient {
                 for (key, value) in verify.header ?? [:] {
                     verifyRequest.setValue(value, forHTTPHeaderField: key)
                 }
-                _ = try data(for: verifyRequest)
+                _ = try data(for: verifyRequest, session: session)
             }
         }
     }
@@ -351,7 +360,8 @@ enum LFSClient {
         operation: String,
         pointers: [LFSPointer],
         endpoint: URL,
-        auth: LFSAuth?
+        auth: LFSAuth?,
+        session: URLSession
     ) throws -> LFSBatchResponse {
         let url = endpoint.appendingPathComponent("objects/batch")
         var request = URLRequest(url: url)
@@ -368,14 +378,14 @@ enum LFSClient {
             objects: pointers.map { RequestObject(oid: $0.oid, size: $0.size) }
         )
         request.httpBody = try JSONEncoder().encode(body)
-        let data = try data(for: request)
+        let data = try data(for: request, session: session)
         return try JSONDecoder().decode(LFSBatchResponse.self, from: data)
     }
 
-    private static func data(for request: URLRequest) throws -> Data {
+    private static func data(for request: URLRequest, session: URLSession) throws -> Data {
         let semaphore = DispatchSemaphore(value: 0)
         var result: Result<(Data, HTTPURLResponse), Error>?
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             defer { semaphore.signal() }
             if let error {
                 result = .failure(error)
@@ -408,25 +418,33 @@ enum LFSClient {
         ) else { return [] }
         var result: [String] = []
         for case let url as URL in enumerator {
-            if url.path.contains("/.git/") || url.lastPathComponent == ".git" { continue }
+            if url.lastPathComponent == ".git" { enumerator.skipDescendants(); continue }
             guard (try? url.resourceValues(forKeys: Set(keys)).isRegularFile) == true else { continue }
             result.append(String(url.path.dropFirst(repoURL.path.count + 1)))
         }
         return result
     }
 
-    private static func lfsPatterns(at repoURL: URL) -> [String] {
-        let keys: [URLResourceKey] = [.isRegularFileKey]
-        guard let enumerator = FileManager.default.enumerator(
-            at: repoURL,
-            includingPropertiesForKeys: keys,
-            options: [.skipsPackageDescendants]
-        ) else { return [] }
+    private static func lfsPatterns(at repoURL: URL, paths: Set<String>? = nil) -> [String] {
+        var attributeFiles: Set<URL> = []
+        if let paths {
+            for path in paths {
+                var directory = repoURL.appendingPathComponent(path).deletingLastPathComponent()
+                while directory.path == repoURL.path || directory.path.hasPrefix(repoURL.path + "/") {
+                    attributeFiles.insert(directory.appendingPathComponent(".gitattributes"))
+                    if directory.path == repoURL.path { break }
+                    directory.deleteLastPathComponent()
+                }
+            }
+        } else if let enumerator = FileManager.default.enumerator(at: repoURL, includingPropertiesForKeys: nil, options: [.skipsPackageDescendants]) {
+            for case let url as URL in enumerator {
+                if url.lastPathComponent == ".git" { enumerator.skipDescendants(); continue }
+                if url.lastPathComponent == ".gitattributes" { attributeFiles.insert(url) }
+            }
+        }
         var patterns: [String] = []
-        for case let url as URL in enumerator {
-            if url.path.contains("/.git/") || url.lastPathComponent == ".git" { continue }
-            guard url.lastPathComponent == ".gitattributes",
-                  let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+        for url in attributeFiles {
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
             let base = String(
                 url.deletingLastPathComponent().path.dropFirst(repoURL.path.count + 1)
             )
@@ -459,8 +477,15 @@ enum LFSClient {
             if character == "*" {
                 let next = pattern.index(after: index)
                 if next < pattern.endIndex, pattern[next] == "*" {
-                    regex += ".*"
-                    index = pattern.index(after: next)
+                    let afterStars = pattern.index(after: next)
+                    if afterStars < pattern.endIndex, pattern[afterStars] == "/" {
+                        // **/ matches zero directories as well as nested directories.
+                        regex += "(?:.*/)?"
+                        index = pattern.index(after: afterStars)
+                    } else {
+                        regex += ".*"
+                        index = afterStars
+                    }
                     continue
                 }
                 regex += "[^/]*"
@@ -477,21 +502,21 @@ enum LFSClient {
         return path.range(of: regex, options: .regularExpression) != nil
     }
 
-    private static func manifestURL(_ repoURL: URL) -> URL {
-        repoURL.appendingPathComponent(".git").appendingPathComponent(manifestName)
+    private static func manifestURL(_ repoURL: URL, gitDirectory: URL?) -> URL {
+        (gitDirectory ?? repoURL.appendingPathComponent(".git")).appendingPathComponent(manifestName)
     }
 
-    private static func loadManifest(at repoURL: URL) -> [String: LFSPointer] {
-        guard let data = try? Data(contentsOf: manifestURL(repoURL)),
+    private static func loadManifest(at repoURL: URL, gitDirectory: URL?) -> [String: LFSPointer] {
+        guard let data = try? Data(contentsOf: manifestURL(repoURL, gitDirectory: gitDirectory)),
               let decoded = try? JSONDecoder().decode([String: LFSPointer].self, from: data) else {
             return [:]
         }
         return decoded
     }
 
-    private static func saveManifest(_ pointers: [String: LFSPointer], at repoURL: URL) throws {
+    private static func saveManifest(_ pointers: [String: LFSPointer], at repoURL: URL, gitDirectory: URL?) throws {
         let data = try JSONEncoder().encode(pointers)
-        try data.write(to: manifestURL(repoURL), options: .atomic)
+        try data.write(to: manifestURL(repoURL, gitDirectory: gitDirectory), options: .atomic)
     }
 
     private static func sha256(_ data: Data) -> String {

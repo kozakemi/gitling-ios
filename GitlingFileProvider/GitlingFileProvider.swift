@@ -29,9 +29,9 @@ final class GitlingFileProvider: NSObject, NSFileProviderReplicatedExtension {
         completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void
     ) -> Progress {
         do {
-            let copy = try ProviderContext.withWorkRoot(itemIdentifier.rawValue) { workRoot in
+            let copy = try ProviderContext.withWorkRoot(itemIdentifier.rawValue) { root, workRoot in
                 let node = try WorkingTree.node(
-                    root: RepoStorage.sharedRepositoriesRoot(),
+                    root: root,
                     identifier: itemIdentifier.rawValue,
                     workRoot: workRoot
                 )
@@ -58,10 +58,10 @@ final class GitlingFileProvider: NSObject, NSFileProviderReplicatedExtension {
         do {
             guard itemTemplate.parentItemIdentifier != .rootContainer else { throw WorkingTreeError.repoProtected }
             let type = itemTemplate.contentType ?? .data
-            let data = url.flatMap { try? Data(contentsOf: $0) }
-            let created = try ProviderContext.withWorkRoot(itemTemplate.parentItemIdentifier.rawValue) { workRoot in
+            let data = try url.map { try Data(contentsOf: $0) }
+            let created = try ProviderContext.withWorkRoot(itemTemplate.parentItemIdentifier.rawValue) { root, workRoot in
                 try WorkingTree.create(
-                    root: RepoStorage.sharedRepositoriesRoot(),
+                    root: root,
                     parentIdentifier: itemTemplate.parentItemIdentifier.rawValue,
                     name: itemTemplate.filename,
                     isDirectory: type.conforms(to: .folder),
@@ -90,9 +90,9 @@ final class GitlingFileProvider: NSObject, NSFileProviderReplicatedExtension {
             let newName = changedFields.contains(.filename) ? item.filename : nil
             let newParent = changedFields.contains(.parentItemIdentifier) ? item.parentItemIdentifier.rawValue : nil
             let contents = changedFields.contains(.contents) ? newContents : nil
-            let updated = try ProviderContext.withWorkRoot(item.itemIdentifier.rawValue) { workRoot in
+            let updated = try ProviderContext.withWorkRoot(item.itemIdentifier.rawValue) { root, workRoot in
                 try WorkingTree.update(
-                    root: RepoStorage.sharedRepositoriesRoot(),
+                    root: root,
                     identifier: item.itemIdentifier.rawValue,
                     newName: newName,
                     newParentIdentifier: newParent,
@@ -115,9 +115,9 @@ final class GitlingFileProvider: NSObject, NSFileProviderReplicatedExtension {
         completionHandler: @escaping (Error?) -> Void
     ) -> Progress {
         do {
-            try ProviderContext.withWorkRoot(identifier.rawValue) { workRoot in
+            try ProviderContext.withWorkRoot(identifier.rawValue) { root, workRoot in
                 try WorkingTree.delete(
-                    root: RepoStorage.sharedRepositoriesRoot(),
+                    root: root,
                     identifier: identifier.rawValue,
                     workRoot: workRoot
                 )
@@ -136,15 +136,17 @@ final class GitlingFileProvider: NSObject, NSFileProviderReplicatedExtension {
 
 private enum ProviderContext {
     static func node(_ identifier: String) throws -> WorkingTree.Node {
-        try withWorkRoot(identifier) { workRoot in
-            try WorkingTree.node(root: RepoStorage.sharedRepositoriesRoot(), identifier: identifier, workRoot: workRoot)
+        try withWorkRoot(identifier) { root, workRoot in
+            try WorkingTree.node(root: root, identifier: identifier, workRoot: workRoot)
         }
     }
 
-    static func withWorkRoot<T>(_ identifier: String, _ body: (URL?) throws -> T) throws -> T {
-        let access = WorktreeLink.repoName(in: identifier).flatMap { WorktreeLink.begin(repoName: $0) }
-        defer { access?.stop() }
-        return try body(access?.url)
+    static func withWorkRoot<T>(_ identifier: String, _ body: (URL, URL?) throws -> T) throws -> T {
+        try ProviderWorkspace.withCurrentRoots { root, metadata in
+            let access = WorktreeLink.repoName(in: identifier).flatMap { WorktreeLink.begin(repoName: $0, storageBase: metadata) }
+            defer { access?.stop() }
+            return try body(root, access?.url)
+        }
     }
 }
 
@@ -280,73 +282,53 @@ private final class ProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
     func invalidate() {}
 
+    private static let tracker = WorkingTreeChangeTracker()
+
     func enumerateItems(for observer: NSFileProviderEnumerationObserver, startingAt page: NSFileProviderPage) {
-        let nodes = items()
-        let identifiers = Set(nodes.map { WorkingTree.identifier(repo: $0.repoName, relative: $0.relative) })
-        Self.knownLock.lock()
-        Self.known[container.rawValue] = identifiers
-        Self.knownLock.unlock()
-        observer.didEnumerate(nodes.map { ProviderItem(node: $0) })
-        observer.finishEnumerating(upTo: nil)
+        do {
+            let nodes = try items()
+            _ = Self.tracker.record(container: container.rawValue, nodes: nodes)
+            observer.didEnumerate(nodes.map { ProviderItem(node: $0) })
+            observer.finishEnumerating(upTo: nil)
+        } catch {
+            observer.finishEnumeratingWithError(ProviderError.wrap(error))
+        }
     }
 
     func currentSyncAnchor(completionHandler: @escaping (NSFileProviderSyncAnchor?) -> Void) {
-        completionHandler(syncAnchor(for: items()))
+        let anchor = try? Self.tracker.record(container: container.rawValue, nodes: items())
+        completionHandler(anchor.map { NSFileProviderSyncAnchor($0) })
     }
 
     func enumerateChanges(for observer: NSFileProviderChangeObserver, from anchor: NSFileProviderSyncAnchor) {
-        let nodes = items()
-        let identifiers = Set(nodes.map { WorkingTree.identifier(repo: $0.repoName, relative: $0.relative) })
-        Self.knownLock.lock()
-        let removed = Self.known[container.rawValue, default: []].subtracting(identifiers)
-        Self.known[container.rawValue] = identifiers
-        Self.knownLock.unlock()
-        let newAnchor = syncAnchor(for: nodes)
-        if removed.isEmpty && newAnchor == anchor {
-            observer.finishEnumeratingChanges(upTo: newAnchor, moreComing: false)
-            return
-        }
-        if !removed.isEmpty {
-            observer.didDeleteItems(withIdentifiers: removed.map { NSFileProviderItemIdentifier($0) })
-        }
-        if !nodes.isEmpty {
-            observer.didUpdate(nodes.map { ProviderItem(node: $0) })
-        }
-        observer.finishEnumeratingChanges(upTo: newAnchor, moreComing: false)
-    }
-
-    private static let knownLock = NSLock()
-    private static var known: [String: Set<String>] = [:]
-
-    private func syncAnchor(for nodes: [WorkingTree.Node]) -> NSFileProviderSyncAnchor {
-        // A stable per-container signature. When it changes, the system asks for the
-        // changed items instead of falling back to a full re-enumeration.
-        var value: UInt64 = 1469598103934665603
-        func mix(_ text: String) {
-            for byte in text.utf8 {
-                value ^= UInt64(byte)
-                value = value &* 1099511628211
+        do {
+            let nodes = try items()
+            let changes = try Self.tracker.changes(container: container.rawValue, nodes: nodes, from: anchor.rawValue)
+            if !changes.removed.isEmpty {
+                observer.didDeleteItems(withIdentifiers: changes.removed.map { NSFileProviderItemIdentifier($0) })
             }
+            if changes.hasChanges && !nodes.isEmpty {
+                observer.didUpdate(nodes.map { ProviderItem(node: $0) })
+            }
+            observer.finishEnumeratingChanges(upTo: NSFileProviderSyncAnchor(changes.anchor), moreComing: false)
+        } catch WorkingTreeChangeTracker.Failure.expiredAnchor {
+            observer.finishEnumeratingWithError(NSError(
+                domain: NSFileProviderErrorDomain,
+                code: NSFileProviderError.Code.syncAnchorExpired.rawValue
+            ))
+        } catch {
+            observer.finishEnumeratingWithError(ProviderError.wrap(error))
         }
-        mix(container.rawValue)
-        for node in nodes {
-            mix(WorkingTree.identifier(repo: node.repoName, relative: node.relative))
-            mix("\(node.modified?.timeIntervalSince1970 ?? 0):\(node.fileSize ?? 0)")
-        }
-        var bigEndian = value.bigEndian
-        return NSFileProviderSyncAnchor(Data(bytes: &bigEndian, count: MemoryLayout<UInt64>.size))
     }
 
-    private func items() -> [WorkingTree.Node] {
-        let root = RepoStorage.sharedRepositoriesRoot()
-        if container == .rootContainer {
-            return WorkingTree.repositories(in: root)
+    private func items() throws -> [WorkingTree.Node] {
+        if container == .rootContainer || container == .workingSet {
+            // Index only repository roots: discover additions without walking Git data.
+            return try ProviderWorkspace.withCurrentRoots { root, _ in WorkingTree.repositories(in: root) }
         }
-        if container == .workingSet || container == .trashContainer {
-            return []
-        }
-        return (try? ProviderContext.withWorkRoot(container.rawValue) { workRoot in
+        if container == .trashContainer { return [] }
+        return try ProviderContext.withWorkRoot(container.rawValue) { root, workRoot in
             try WorkingTree.children(root: root, identifier: container.rawValue, workRoot: workRoot)
-        }) ?? []
+        }
     }
 }

@@ -532,6 +532,12 @@
             "state": "translated",
             "value": "提交说明"
           }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commit message"
+          }
         }
       }
     },
@@ -597,7 +603,8 @@
             "value": "连接 GitHub"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Connect with GitHub in Settings to choose a repository.": {
       "localizations": {
@@ -613,7 +620,8 @@
             "value": "在设置里连接 GitHub 后，就可以选择该账号下的仓库。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Connected as %@": {
       "localizations": {
@@ -1253,7 +1261,8 @@
             "value": "请输入分支名。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Enter a commit message.": {
       "localizations": {
@@ -1462,7 +1471,8 @@
             "value": "GitHub"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "GitHub sign-in timed out. Please try again.": {
       "localizations": {
@@ -2379,7 +2389,8 @@
             "value": "退出登录"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Stage All": {
       "localizations": {
@@ -2523,7 +2534,8 @@
             "value": "演示版只能克隆 HTTPS 仓库。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "The Files location could not be added: %@": {
       "localizations": {
@@ -2972,7 +2984,8 @@
             "value": "你的 GitHub 仓库"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "GitLab": {
       "localizations": {
@@ -2988,7 +3001,8 @@
             "value": "GitLab"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Account": {
       "localizations": {
@@ -3930,6 +3944,3698 @@
           "stringUnit": {
             "state": "translated",
             "value": "さらに読み込み中…"
+          }
+        }
+      }
+    },
+    "": {},
+    "A file or directory blocks restoration. Move it aside before resolving or aborting.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有文件或目录阻挡恢复。请先移走该内容，再解决冲突或中止操作。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルまたはディレクトリが復元を妨げています。先に移動してから解決または中止してください。"
+          }
+        }
+      }
+    },
+    "Abort operation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中止操作"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作を中止"
+          }
+        }
+      }
+    },
+    "Abort this Git operation?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中止此 Git 操作？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このGit操作を中止しますか？"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        }
+      }
+    },
+    "Apply Stash": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを適用"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用 Stash"
+          }
+        }
+      }
+    },
+    "Automatic (upstream)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動（上流に従う）"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动（跟随上游）"
+          }
+        }
+      }
+    },
+    "Base": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共同祖先"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共通の祖先"
+          }
+        }
+      }
+    },
+    "Binary or large content; use an external editor.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "二进制或大型内容，请使用外部编辑器。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バイナリまたは大きな内容です。外部エディタを使用してください。"
+          }
+        }
+      }
+    },
+    "Branch name": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチ名"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分支名称"
+          }
+        }
+      }
+    },
+    "Cannot delete the current branch.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のブランチは削除できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法删除当前分支。"
+          }
+        }
+      }
+    },
+    "Check out a local branch before starting this operation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始此操作前请检出本地分支。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作の前にローカルブランチをチェックアウトしてください。"
+          }
+        }
+      }
+    },
+    "Cherry-pick in progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在拣选提交"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cherry-pick実行中"
+          }
+        }
+      }
+    },
+    "Choose Repository Folder": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリフォルダを選択"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择仓库文件夹"
+          }
+        }
+      }
+    },
+    "Choose a self-contained repository or a bare repository. External Git directories and shared object stores are not supported.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自己完結型リポジトリまたはベアリポジトリを選択してください。外部 Git ディレクトリや共有オブジェクトストアには対応していません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择包含独立 Git 数据的仓库或裸仓库。暂不支持外置 Git 目录与共享对象库。"
+          }
+        }
+      }
+    },
+    "Choose the root folder of a Git repository.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git リポジトリのルートフォルダを選択してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择 Git 仓库的根文件夹。"
+          }
+        }
+      }
+    },
+    "Commit or discard your changes before cherry-picking.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チェリーピックする前に、変更をコミットするか破棄してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先提交或丢弃工作区修改，再执行 cherry-pick。"
+          }
+        }
+      }
+    },
+    "Commit or stash your changes before restoring a stash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを復元する前に、現在の変更をコミットするかスタッシュに保存してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 Stash 前，请先提交当前修改或保存为另一个 Stash。"
+          }
+        }
+      }
+    },
+    "Commit or stash your changes before starting this operation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始此操作前请提交或 Stash 当前修改。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作の前に変更をコミットまたはStashしてください。"
+          }
+        }
+      }
+    },
+    "Confirm conflict resolution?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认冲突已解决？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合の解決を確定しますか？"
+          }
+        }
+      }
+    },
+    "Confirm resolution": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认解决"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解決を確定"
+          }
+        }
+      }
+    },
+    "Confirmation stages the current working file. Conflict markers must be removed first. For a deleted file, explicitly choose Resolve as deletion.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认后会暂存当前工作文件。请先清除冲突标记；删除文件时请选择“以删除解决”。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確定すると現在の作業ファイルがステージされます。先に競合マーカーを削除してください。ファイルを削除する場合は「削除として解決」を選んでください。"
+          }
+        }
+      }
+    },
+    "Conflict file": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲突文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合ファイル"
+          }
+        }
+      }
+    },
+    "Conflict side": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲突版本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合のバージョン"
+          }
+        }
+      }
+    },
+    "Conflicted": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合あり"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存在冲突"
+          }
+        }
+      }
+    },
+    "Conflicts": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲突"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合"
+          }
+        }
+      }
+    },
+    "Continue operation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续操作"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作を続行"
+          }
+        }
+      }
+    },
+    "Copies the working files and complete Git data into Gitling. The source folder stays unchanged.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業ファイルとすべての Git データを Gitling にコピーします。元のフォルダは変更しません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将工作区文件和完整 Git 数据复制到 Gitling，源文件夹保持不变。"
+          }
+        }
+      }
+    },
+    "Copy Import": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーしてインポート"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制导入"
+          }
+        }
+      }
+    },
+    "Could not import repository.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリをインポートできません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导入仓库。"
+          }
+        }
+      }
+    },
+    "Could not read stashes.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュ一覧を読み込めません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取 Stash 列表。"
+          }
+        }
+      }
+    },
+    "Could not remove stash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを削除できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法删除 Stash。"
+          }
+        }
+      }
+    },
+    "Could not restore stash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを復元できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法恢复 Stash。"
+          }
+        }
+      }
+    },
+    "Could not save stash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを保存できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存 Stash。"
+          }
+        }
+      }
+    },
+    "Could not update branch.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチを更新できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法更新分支。"
+          }
+        }
+      }
+    },
+    "Delete Branch": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチを削除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除分支"
+          }
+        }
+      }
+    },
+    "Delete this branch?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このブランチを削除しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此分支？"
+          }
+        }
+      }
+    },
+    "Delete this stash?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このスタッシュを削除しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此 Stash？"
+          }
+        }
+      }
+    },
+    "Deleted on one side": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一方已删除此文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "片方で削除されたファイル"
+          }
+        }
+      }
+    },
+    "During rebase, Ours is the branch being rebased onto; Theirs is the commit being replayed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebase 时，“当前一方”是目标基底，“传入一方”是正在重放的提交。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebase中の「現在の側」は移動先のブランチ、「取り込む側」は再適用中のコミットです。"
+          }
+        }
+      }
+    },
+    "Edit each file, then explicitly confirm its resolution. Continue only after every conflict is resolved and your edits are staged.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "逐个编辑文件并确认解决。所有冲突解决且编辑内容已暂存后，才能继续操作。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各ファイルを編集し、解決を確定してください。すべての競合を解決して編集内容をステージしてから続行できます。"
+          }
+        }
+      }
+    },
+    "Edited file imported. Review the working file, then confirm resolution.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导入编辑结果，请查看工作文件后确认解决。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集済みファイルを読み込みました。作業ファイルを確認してから解決を確定してください。"
+          }
+        }
+      }
+    },
+    "Enter a valid branch name.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効なブランチ名を入力してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的分支名称。"
+          }
+        }
+      }
+    },
+    "Export a copy to your editor, save the edited file, then import it here. Exporting alone does not update the repository. You can also edit the working file directly in Files.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出副本到编辑器，保存后在此导入。仅导出不会更新仓库。也可以在“文件”App 中直接编辑工作文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーをエディタに書き出し、編集して保存したファイルをここで読み込んでください。書き出しだけではリポジトリは更新されません。「ファイル」で作業ファイルを直接編集することもできます。"
+          }
+        }
+      }
+    },
+    "External editing": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部编辑"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部で編集"
+          }
+        }
+      }
+    },
+    "Import Source": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インポート元"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入来源"
+          }
+        }
+      }
+    },
+    "Import edited file": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入编辑结果"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集済みファイルを読み込む"
+          }
+        }
+      }
+    },
+    "Importing…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インポート中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在导入…"
+          }
+        }
+      }
+    },
+    "Include untracked files": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未追跡ファイルを含める"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含未跟踪文件"
+          }
+        }
+      }
+    },
+    "Manage Branches and Upstream": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチと上流を管理"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理分支与上游"
+          }
+        }
+      }
+    },
+    "Merge in progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在合并"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マージ実行中"
+          }
+        }
+      }
+    },
+    "No operation in progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有进行中的操作"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "進行中の操作はありません"
+          }
+        }
+      }
+    },
+    "No stashes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存されたスタッシュはありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有已保存的 Stash"
+          }
+        }
+      }
+    },
+    "No unresolved files": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有未解决的文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未解決のファイルはありません"
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "なし"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无"
+          }
+        }
+      }
+    },
+    "Not present on this side": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此版本中不存在该文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この側にはファイルがありません"
+          }
+        }
+      }
+    },
+    "Only branches merged into the current branch can be deleted.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のブランチにマージ済みのブランチのみ削除できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只能删除已合入当前分支的分支。"
+          }
+        }
+      }
+    },
+    "Open edit copy": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开编辑副本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集用コピーを開く"
+          }
+        }
+      }
+    },
+    "Ours": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前一方"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の側"
+          }
+        }
+      }
+    },
+    "Pop Stash": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを復元して削除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复并删除 Stash"
+          }
+        }
+      }
+    },
+    "Prepare edit copy": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备编辑副本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "編集用コピーを準備"
+          }
+        }
+      }
+    },
+    "Pull follows the upstream branch.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プルは設定済みの上流ブランチに従います。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拉取始终跟随已配置的上游分支。"
+          }
+        }
+      }
+    },
+    "Rebase in progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在变基"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebase実行中"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
+    "Remove the conflict markers before confirming resolution.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先清除冲突标记，再确认解决。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解決を確定する前に競合マーカーを削除してください。"
+          }
+        }
+      }
+    },
+    "Rename Branch": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチ名を変更"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名分支"
+          }
+        }
+      }
+    },
+    "Resolve as deletion": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以删除解决"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除として解決"
+          }
+        }
+      }
+    },
+    "Resolve conflicts": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解决冲突"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合を解決"
+          }
+        }
+      }
+    },
+    "Resolve the current Git operation first.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先に現在の Git 操作を完了または中止し、競合を解決してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先完成或中止当前 Git 操作并解决冲突。"
+          }
+        }
+      }
+    },
+    "Save Stash": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュを保存"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存 Stash"
+          }
+        }
+      }
+    },
+    "Saved Stashes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存済みスタッシュ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存的 Stash"
+          }
+        }
+      }
+    },
+    "Select a remote for this operation.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作で使用するリモートを選択してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请为此操作选择远程仓库。"
+          }
+        }
+      }
+    },
+    "Set Upstream": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上流を設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置上游"
+          }
+        }
+      }
+    },
+    "Source Folder": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元のフォルダ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源文件夹"
+          }
+        }
+      }
+    },
+    "Stage": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂存"
+          }
+        }
+      }
+    },
+    "Stage your edited resolutions before continuing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续前请暂存编辑后的解决结果。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続行する前に編集した解決内容をステージしてください。"
+          }
+        }
+      }
+    },
+    "Staged Changes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステージ済みの変更"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂存的修改"
+          }
+        }
+      }
+    },
+    "Stash": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stash"
+          }
+        }
+      }
+    },
+    "Stash message": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュのメッセージ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stash 说明"
+          }
+        }
+      }
+    },
+    "That stash no longer exists.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このスタッシュは存在しません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Stash 已不存在。"
+          }
+        }
+      }
+    },
+    "The conflict or file changed. Refresh before trying again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲突或文件已变化，请刷新后重试。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "競合またはファイルが変更されました。更新して再試行してください。"
+          }
+        }
+      }
+    },
+    "The copied repository is incomplete. Nothing was imported.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーしたリポジトリが不完全なため、インポートしませんでした。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仓库副本不完整，未完成导入。"
+          }
+        }
+      }
+    },
+    "The current working file will be staged as the resolution.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将暂存当前工作文件作为解决结果。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の作業ファイルを解決結果としてステージします。"
+          }
+        }
+      }
+    },
+    "The import destination must be outside the source repository.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インポート先は元のリポジトリの外に指定してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入目标必须位于源仓库之外。"
+          }
+        }
+      }
+    },
+    "The source changed during import. Nothing was imported. Try again when it is idle.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インポート中に元のリポジトリが変更されたため、インポートしませんでした。操作が終了してから再試行してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源仓库在导入过程中发生变化，未完成导入。请在仓库空闲时重试。"
+          }
+        }
+      }
+    },
+    "The source has a Git lock. Finish the Git operation before importing.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元のリポジトリに Git ロックがあります。Git 操作を完了してからインポートしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源仓库存在 Git 锁，请先完成 Git 操作再导入。"
+          }
+        }
+      }
+    },
+    "The stash has conflicts. The stash was kept. Resolve the files before staging.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッシュの復元で競合が発生しました。元のスタッシュは保持されています。ファイルの競合を解決してからステージしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stash 恢复存在冲突，已保留原 Stash。请解决文件冲突后再暂存。"
+          }
+        }
+      }
+    },
+    "The working file will be deleted and its deletion staged.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将删除工作文件，并暂存此删除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業ファイルを削除し、その削除をステージします。"
+          }
+        }
+      }
+    },
+    "Theirs": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "传入一方"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取り込む側"
+          }
+        }
+      }
+    },
+    "This branch has unmerged commits.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このブランチには未マージのコミットがあります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此分支包含尚未合入当前分支的提交。"
+          }
+        }
+      }
+    },
+    "This file is too large for the edit round trip.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件超过外部编辑导入的大小限制（16 MiB）。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルは外部編集の読み込み上限（16 MiB）を超えています。"
+          }
+        }
+      }
+    },
+    "This operation has already committed. Continue to finish recovery.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作已生成提交，请选择继续以完成恢复。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作はすでにコミット済みです。続行して復旧を完了してください。"
+          }
+        }
+      }
+    },
+    "This operation was started outside Gitling. Resolve files here, then use the original Git tool to continue or abort.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作由外部工具启动。可在此解决文件冲突，再使用原 Git 工具继续或中止。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作は外部ツールで開始されました。ここでファイルの競合を解決し、元のGitツールで続行または中止してください。"
+          }
+        }
+      }
+    },
+    "This permanently removes the saved changes in this stash.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このスタッシュに保存された変更を完全に削除します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这将永久删除此 Stash 中保存的修改。"
+          }
+        }
+      }
+    },
+    "This repository depends on external Git data. Import a self-contained repository instead.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このリポジトリは外部の Git データに依存しています。自己完結型の完全なリポジトリを選択してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此仓库依赖外部 Git 数据，请选择包含独立 Git 数据的完整仓库。"
+          }
+        }
+      }
+    },
+    "This restores the branch and tracked files to the state before the operation. Resolution edits will be discarded. Unrelated untracked files are kept.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将分支和已跟踪文件恢复到操作前。解决冲突时的编辑会被丢弃，无关的未跟踪文件会保留。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチと追跡対象ファイルを操作前に戻します。競合解決の編集は破棄されます。無関係な未追跡ファイルは保持されます。"
+          }
+        }
+      }
+    },
+    "Unresolved files": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未解决的文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未解決のファイル"
+          }
+        }
+      }
+    },
+    "Unstage": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステージ解除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消暂存"
+          }
+        }
+      }
+    },
+    "Unstaged Changes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未ステージの変更"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未暂存的修改"
+          }
+        }
+      }
+    },
+    "Upstream": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上流ブランチ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上游分支"
+          }
+        }
+      }
+    },
+    "Working file": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業ファイル"
+          }
+        }
+      }
+    },
+    "The file, index, or working folder changed. Review the changes and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file, index, or working folder changed. Review the changes and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件、索引或工作目录已变化。请重新查看更改后再试。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル、インデックス、または作業フォルダが変更されました。変更を確認してから再試行してください。"
+          }
+        }
+      }
+    },
+    "Only regular tracked files can be restored. Symbolic links, folders, and submodules are protected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only regular tracked files can be restored. Symbolic links, folders, and submodules are protected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只能恢复普通的已跟踪文件。符号链接、文件夹和子模块受到保护。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通常の追跡対象ファイルのみ復元できます。シンボリックリンク、フォルダ、サブモジュールは保護されています。"
+          }
+        }
+      }
+    },
+    "This file has no staged version. Untracked files and staged deletions are not restored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file has no staged version. Untracked files and staged deletions are not restored."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件在索引中没有版本。不会恢复未跟踪文件或已暂存的删除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルにはインデックス内の版がありません。未追跡ファイルやステージ済みの削除は復元しません。"
+          }
+        }
+      }
+    },
+    "This file uses Git LFS. Restore it with an LFS-aware tool to avoid replacing its contents with a pointer.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file uses Git LFS. Restore it with an LFS-aware tool to avoid replacing its contents with a pointer."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件使用 Git LFS。请使用支持 LFS 的工具恢复，以免将内容替换为指针文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルは Git LFS を使用しています。内容がポインタに置き換わらないよう、LFS 対応ツールで復元してください。"
+          }
+        }
+      }
+    },
+    "Discard Changes…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard Changes…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃修改…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更を破棄…"
+          }
+        }
+      }
+    },
+    "Source: Index (staged version)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: Index (staged version)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复来源：索引（已暂存版本）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復元元：インデックス（ステージ済みの版）"
+          }
+        }
+      }
+    },
+    "Recreate this deleted working file from the index. Staged changes will be kept.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recreate this deleted working file from the index. Staged changes will be kept."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从索引重新创建此已删除的工作文件。已暂存的更改将保留。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除された作業ファイルをインデックスから再作成します。ステージ済みの変更は保持されます。"
+          }
+        }
+      }
+    },
+    "Replace only this working file with its index version. Its unstaged changes will be lost. Staged changes will be kept.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace only this working file with its index version. Its unstaged changes will be lost. Staged changes will be kept."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅用索引版本替换此工作文件。此文件未暂存的修改将丢失，已暂存的更改将保留。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この作業ファイルのみをインデックスの版で置き換えます。未ステージの変更は失われ、ステージ済みの変更は保持されます。"
+          }
+        }
+      }
+    },
+    "This changes the file in your linked external working folder.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This changes the file in your linked external working folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会修改已关联的外部工作目录中的文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リンク済みの外部作業フォルダ内のファイルを変更します。"
+          }
+        }
+      }
+    },
+    "Other files and the index will not be changed. This action cannot be undone in Gitling.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other files and the index will not be changed. This action cannot be undone in Gitling."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他文件及索引不会更改。此操作无法在 Gitling 中撤销。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "他のファイルとインデックスは変更しません。この操作は Gitling 内で取り消せません。"
+          }
+        }
+      }
+    },
+    "Restore File": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore File"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを復元"
+          }
+        }
+      }
+    },
+    "Restore Deleted File?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Deleted File?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复已删除的文件？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除されたファイルを復元しますか？"
+          }
+        }
+      }
+    },
+    "Discard Unstaged Changes?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard Unstaged Changes?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃未暂存的修改？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未ステージの変更を破棄しますか？"
+          }
+        }
+      }
+    },
+    "Could not update submodules. Completed work and local Git data were kept. Retry after fixing the reported submodule.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not update submodules. Completed work and local Git data were kept. Retry after fixing the reported submodule."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法更新子模块。已保留完成的步骤和本地 Git 数据。请处理出错的子模块后重试。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを更新できませんでした。完了した処理とローカル Git データは保持されています。問題を解決して再試行してください。"
+          }
+        }
+      }
+    },
+    "The parent index, submodule configuration, or working folder changed. End this update and review the new state before starting again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The parent index, submodule configuration, or working folder changed. End this update and review the new state before starting again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "父仓库索引、子模块配置或工作目录已变化。请结束本轮更新，检查新状态后重新开始。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "親のインデックス、サブモジュール設定、または作業フォルダが変更されました。この更新を終了し、新しい状態を確認してから再開してください。"
+          }
+        }
+      }
+    },
+    "A submodule has local changes or an unfinished operation. Commit or stash them before updating. No force checkout is performed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A submodule has local changes or an unfinished operation. Commit or stash them before updating. No force checkout is performed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块有本地修改或未完成的操作。请先提交或 Stash 后再更新，不会强制检出。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールにローカル変更または未完了の操作があります。更新前にコミットまたはスタッシュしてください。強制チェックアウトは行いません。"
+          }
+        }
+      }
+    },
+    "Submodule URLs must not contain passwords. Configure credentials in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodule URLs must not contain passwords. Configure credentials in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块 URL 不得包含密码。请在设置中配置凭据。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュール URL にパスワードは含められません。設定で認証情報を構成してください。"
+          }
+        }
+      }
+    },
+    "Resume or end the pending submodule update first.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume or end the pending submodule update first."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先重试或结束未完成的子模块更新。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先に未完了のサブモジュール更新を再試行または終了してください。"
+          }
+        }
+      }
+    },
+    "Updating submodules…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating submodules…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新子模块…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを更新中…"
+          }
+        }
+      }
+    },
+    "Submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュール"
+          }
+        }
+      }
+    },
+    "Resume Submodule Update": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume Submodule Update"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复子模块更新"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュール更新を再開"
+          }
+        }
+      }
+    },
+    "Retry Remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry Remaining"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试剩余步骤"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りを再試行"
+          }
+        }
+      }
+    },
+    "End This Update": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End This Update"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束本轮更新"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この更新を終了"
+          }
+        }
+      }
+    },
+    "Initialize Submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initialize Submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初始化子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを初期化"
+          }
+        }
+      }
+    },
+    "Update Submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを更新"
+          }
+        }
+      }
+    },
+    "Recursive Submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recursive Submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "递归处理子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを再帰処理"
+          }
+        }
+      }
+    },
+    "Initialize Missing Submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initialize Missing Submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初始化缺失的子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未初期化のサブモジュールも初期化"
+          }
+        }
+      }
+    },
+    "Initialize saves local configuration without downloading. Update checks out the commits recorded in the parent index, not the latest remote branches.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initialize saves local configuration without downloading. Update checks out the commits recorded in the parent index, not the latest remote branches."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初始化只保存本地配置，不下载内容。更新会检出父仓库索引记录的提交，不追踪远端分支最新提交。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初期化はローカル設定の保存のみで、ダウンロードしません。更新は親のインデックスに記録されたコミットをチェックアウトし、リモートブランチの最新版には追従しません。"
+          }
+        }
+      }
+    },
+    "Completed: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed: %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成：%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了：%lld"
+          }
+        }
+      }
+    },
+    "A previous update is unfinished. Retry uses its saved options. Ending keeps completed work, downloaded objects, and backup references; it does not roll back files.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A previous update is unfinished. Retry uses its saved options. Ending keeps completed work, downloaded objects, and backup references; it does not roll back files."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次更新尚未完成。重试会沿用已保存的选项。结束任务会保留完成的步骤、已下载对象及备份引用，不回滚文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の更新が未完了です。再試行は保存済みの設定を使用します。終了しても完了した処理、ダウンロード済みオブジェクト、バックアップ参照は保持され、ファイルは巻き戻しません。"
+          }
+        }
+      }
+    },
+    "Submodule Credentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodule Credentials"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块凭据"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールの認証情報"
+          }
+        }
+      }
+    },
+    "Each remote uses its own matching account. For SSH remotes on another host, select a key here. Newly discovered nested remotes use matching saved accounts; retry to choose their SSH keys if needed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each remote uses its own matching account. For SSH remotes on another host, select a key here. Newly discovered nested remotes use matching saved accounts; retry to choose their SSH keys if needed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每个远端分别匹配账户。其他主机的 SSH 远端请在此选择密钥。新发现的嵌套远端会匹配已保存账户；需要指定其 SSH 密钥时可在失败后选择并重试。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各リモートに一致するアカウントを使用します。別ホストの SSH リモートにはここで鍵を選択してください。新たに見つかった入れ子のリモートも保存済みアカウントと照合します。SSH 鍵の指定が必要なら、失敗後に選択して再試行できます。"
+          }
+        }
+      }
+    },
+    "Password or token (optional override)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password or token (optional override)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码或令牌（可选覆盖）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスワードまたはトークン（任意の上書き）"
+          }
+        }
+      }
+    },
+    "Submodule Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodule Status"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块状态"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールの状態"
+          }
+        }
+      }
+    },
+    "No submodules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No submodules"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有子模块"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールはありません"
+          }
+        }
+      }
+    },
+    "Local changes — protected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local changes — protected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有本地修改，已保护"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル変更あり・保護中"
+          }
+        }
+      }
+    },
+    "Not initialized": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not initialized"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未初始化"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未初期化"
+          }
+        }
+      }
+    },
+    "Initialized; not checked out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initialized; not checked out"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已初始化，尚未检出"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初期化済み・未チェックアウト"
+          }
+        }
+      }
+    },
+    "Needs update": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs update"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要更新"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新が必要"
+          }
+        }
+      }
+    },
+    "Up to date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是目标版本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対象の版と一致"
+          }
+        }
+      }
+    },
+    "Index: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Index: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "索引：%@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インデックス：%@"
+          }
+        }
+      }
+    },
+    "Update Submodules?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Submodules?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新子模块？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを更新しますか？"
+          }
+        }
+      }
+    },
+    "Initialize Submodules?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initialize Submodules?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初始化子模块？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールを初期化しますか？"
+          }
+        }
+      }
+    },
+    "Only submodules are changed. Local modifications block checkout. Updates may download missing commits; successful steps are retained if a later step fails. Linked external working folders are changed in place.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only submodules are changed. Local modifications block checkout. Updates may download missing commits; successful steps are retained if a later step fails. Linked external working folders are changed in place."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅修改子模块。本地修改会阻止检出。更新可能下载缺失的提交，后续失败时会保留已完成的步骤。关联的外部工作区会就地更新。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールのみを変更します。ローカル変更がある場合はチェックアウトを中止します。必要なコミットをダウンロードする場合があり、後続処理が失敗しても完了済みの処理は保持されます。リンク先の外部作業フォルダはその場で更新します。"
+          }
+        }
+      }
+    },
+    "End This Update?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End This Update?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束本轮更新？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この更新を終了しますか？"
+          }
+        }
+      }
+    },
+    "Keep completed work and local Git data, and remove only the saved task. No files are rolled back or deleted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep completed work and local Git data, and remove only the saved task. No files are rolled back or deleted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留已完成的工作和本地 Git 数据，仅清除保存的任务记录。不回滚或删除文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了した処理とローカル Git データを保持し、保存されたタスクのみを削除します。ファイルの巻き戻しや削除は行いません。"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続行"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動"
+          }
+        }
+      }
+    },
+    "Could not read that tag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read that tag."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取此标签。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このタグを読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "The tag object is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tag object is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签对象不可用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグのオブジェクトを利用できません。"
+          }
+        }
+      }
+    },
+    "The tag metadata is too large to display safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tag metadata is too large to display safely."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签元数据过大，无法安全显示。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグのメタデータが大きすぎるため、安全に表示できません。"
+          }
+        }
+      }
+    },
+    "The tag changed. Review its details before checking it out.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tag changed. Review its details before checking it out."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签已变化。请重新查看详情后再检出。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグが変更されました。詳細を確認してからチェックアウトしてください。"
+          }
+        }
+      }
+    },
+    "Only tags pointing to commits can be checked out.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only tags pointing to commits can be checked out."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只能检出指向提交的标签。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミットを指すタグのみチェックアウトできます。"
+          }
+        }
+      }
+    },
+    "Detached HEAD · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detached HEAD · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分离的 HEAD · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り離された HEAD · %@"
+          }
+        }
+      }
+    },
+    "Create or check out a branch before pushing from detached HEAD.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create or check out a branch before pushing from detached HEAD."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HEAD 已分离。请先创建或检出分支，再推送。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HEAD が切り離されています。プッシュする前にブランチを作成するかチェックアウトしてください。"
+          }
+        }
+      }
+    },
+    "New commits here do not belong to a branch. Create a branch to keep your work.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New commits here do not belong to a branch. Create a branch to keep your work."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前新提交不属于任何分支。请创建分支以保留工作。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここでの新しいコミットはブランチに属しません。作業を保持するためにブランチを作成してください。"
+          }
+        }
+      }
+    },
+    "Tags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグ"
+          }
+        }
+      }
+    },
+    "No tags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグはありません"
+          }
+        }
+      }
+    },
+    "Search tags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグを検索"
+          }
+        }
+      }
+    },
+    "Annotated tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annotated tag"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附注标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "注釈付きタグ"
+          }
+        }
+      }
+    },
+    "Lightweight tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lightweight tag"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻量标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軽量タグ"
+          }
+        }
+      }
+    },
+    "Checking out a tag enters detached HEAD. Branches and tags will not move. Commit or stash all local changes first, including untracked files.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking out a tag enters detached HEAD. Branches and tags will not move. Commit or stash all local changes first, including untracked files."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检出标签后会进入分离的 HEAD 状态，分支和标签引用不会移动。请先提交或 Stash 所有本地修改，包括未跟踪文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグをチェックアウトすると HEAD が切り離されます。ブランチとタグの参照は移動しません。未追跡ファイルを含むすべてのローカル変更を先にコミットまたはスタッシュしてください。"
+          }
+        }
+      }
+    },
+    "Submodules are not automatically updated. New commits will not belong to a branch until you create one.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodules are not automatically updated. New commits will not belong to a branch until you create one."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不会自动更新子模块。创建分支前，新提交不属于任何分支。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールは自動更新しません。ブランチを作成するまで、新しいコミットはどのブランチにも属しません。"
+          }
+        }
+      }
+    },
+    "Tag Details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag Details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签详情"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグの詳細"
+          }
+        }
+      }
+    },
+    "Target": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対象"
+          }
+        }
+      }
+    },
+    "Check Out Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Out Tag"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检出标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグをチェックアウト"
+          }
+        }
+      }
+    },
+    "Check Out Tag?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Out Tag?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检出标签？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグをチェックアウトしますか？"
+          }
+        }
+      }
+    },
+    "Create a branch at the current commit to keep your work.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a branch at the current commit to keep your work."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在当前提交上创建分支以保留工作。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のコミットにブランチを作成して作業を保持します。"
+          }
+        }
+      }
+    },
+    "Create Branch to Keep Work": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create Branch to Keep Work"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建分支以保留工作"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランチを作成して作業を保持"
+          }
+        }
+      }
+    },
+    "All fields": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All fields"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部字段"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての項目"
+          }
+        }
+      }
+    },
+    "Author": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Author"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作者"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成者"
+          }
+        }
+      }
+    },
+    "OID prefix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OID prefix"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OID 前缀"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OID の接頭辞"
+          }
+        }
+      }
+    },
+    "Current HEAD": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current HEAD"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前 HEAD"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の HEAD"
+          }
+        }
+      }
+    },
+    "All branches and tags": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All branches and tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部分支与标签"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのブランチとタグ"
+          }
+        }
+      }
+    },
+    "Could not search commit history.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not search commit history."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法搜索提交历史。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミット履歴を検索できませんでした。"
+          }
+        }
+      }
+    },
+    "Enter an OID prefix using up to 40 hexadecimal characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter an OID prefix using up to 40 hexadecimal characters."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入不超过 40 位的十六进制 OID 前缀。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "40 桁以内の16進数で OID の接頭辞を入力してください。"
+          }
+        }
+      }
+    },
+    "This file tree is too deep to search safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file tree is too deep to search safely."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件目录层级过深，无法安全完成搜索。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディレクトリ階層が深すぎるため、安全に検索できません。"
+          }
+        }
+      }
+    },
+    "Searching…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在搜索…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索中…"
+          }
+        }
+      }
+    },
+    "%lld results shown · %lld entries checked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld results shown · %lld entries checked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已显示 %lld 项结果 · 已检查 %lld 项"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件を表示 · %lld 件を確認"
+          }
+        }
+      }
+    },
+    "More matches are available. Load the next page to continue.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More matches are available. Load the next page to continue."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有匹配结果，可继续加载下一页。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ほかにも一致する結果があります。次のページを読み込んでください。"
+          }
+        }
+      }
+    },
+    "Message, author, or OID prefix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message, author, or OID prefix"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交说明、作者或 OID 前缀"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メッセージ、作成者、OID の接頭辞"
+          }
+        }
+      }
+    },
+    "Search field": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search field"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检索字段"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索項目"
+          }
+        }
+      }
+    },
+    "History scope": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History scope"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史范围"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴の範囲"
+          }
+        }
+      }
+    },
+    "Searches the complete reachable history in this scope, including pages not loaded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searches the complete reachable history in this scope, including pages not loaded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索此范围内全部可达历史，包括尚未加载的页面。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ読み込んでいないページを含め、この範囲の到達可能な履歴全体を検索します。"
+          }
+        }
+      }
+    },
+    "Enter a query to search history.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a query to search history."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入关键词搜索提交历史。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーワードを入力して履歴を検索してください。"
+          }
+        }
+      }
+    },
+    "No matching commits": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching commits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的提交"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するコミットはありません"
+          }
+        }
+      }
+    },
+    "Load More Results": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load More Results"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载更多结果"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "さらに結果を読み込む"
+          }
+        }
+      }
+    },
+    "Search History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索提交历史"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴を検索"
+          }
+        }
+      }
+    },
+    "File name or relative path": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File name or relative path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件名或相对路径"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル名または相対パス"
+          }
+        }
+      }
+    },
+    "Searches files throughout the working folder, including hidden and untracked files. Git metadata and symbolic links are excluded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searches files throughout the working folder, including hidden and untracked files. Git metadata and symbolic links are excluded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索整个工作区的文件，包括隐藏文件和未跟踪文件。排除 Git 元数据和符号链接。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隠しファイルや未追跡ファイルを含め、作業フォルダ全体を検索します。Git メタデータとシンボリックリンクは除外します。"
+          }
+        }
+      }
+    },
+    "Enter a query to search files.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a query to search files."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入关键词搜索文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーワードを入力してファイルを検索してください。"
+          }
+        }
+      }
+    },
+    "No matching files": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するファイルはありません"
+          }
+        }
+      }
+    },
+    "Search Files": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイルを検索"
           }
         }
       }

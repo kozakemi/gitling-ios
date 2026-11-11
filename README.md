@@ -18,7 +18,23 @@ Gitling for iOS brings the Gitling mobile Git workflow to iOS: clone repositorie
 browse history and diffs, commit, and push. Workspaces are exposed in the Files app
 so other editors can modify files.
 
+## Progress and roadmap
+
+[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-11.
+
 ## Features
+
+- Copy-import existing repositories while preserving the source, full local Git data, and uncommitted state; convert bare repositories offline
+
+- Stage and unstage individual files, with separate working-tree and staged diffs
+- Restore individual working files from the index, including deleted files, while preserving staged changes ([details](docs/file-restore.md))
+- Save, list, apply, pop, and delete stashes, optionally including untracked files
+- Recoverable merge/rebase/cherry-pick conflicts: inspect both sides and the working file, import external edits, confirm resolutions, continue or abort ([details](docs/conflict-resolution.md))
+- Submodule status, initialization, updates, and recursion, with dirty-worktree protection and resumable failures ([details](docs/submodules.md))
+- Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection ([details](docs/tags-and-diff-layout.md))
+- Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination ([details](docs/repository-search.md))
+- Support `feature/topic` branch names, branch renaming, and safe deletion of merged branches
+- Set or clear upstream branches; select a remote for Fetch/Push, with default sync following the upstream remote and branch name
 
 - Clone HTTPS repositories and initialize local repositories
 - Commit, stage, unstage, fetch, pull, and push
@@ -29,7 +45,7 @@ so other editors can modify files.
 - Colorized commit diffs: additions in green, deletions in red, hunk headers in blue,
   file headers in gray
 - Chinese, English, and Japanese interfaces
-- Gitling location in the Files app through a File Provider extension
+- Gitling location in the Files app through a File Provider extension ([Duo simulator access notes](docs/duo-files-access.md))
 - Link an external folder from the Files app as the working tree
 - GitHub Device Flow sign-in
 - GitLab.com and self-hosted GitLab, with multiple accounts per platform
@@ -92,11 +108,7 @@ You can also build it manually first:
 ## Tests and checks
 
 ```sh
-xcodebuild \
-  -project Gitling.xcodeproj \
-  -scheme Gitling \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  test
+./scripts/test.sh
 ```
 
 Localization coverage check:
@@ -132,6 +144,10 @@ docs/                    Screenshots
 - Multiple accounts are supported for both GitHub and GitLab.
 
 ## Known limitations
+
+- Copy import requires self-contained Git data. External `.git` directories, shared object stores, and promisor dependencies are rejected to avoid incomplete copies or writes back to the source.
+
+- A conflicted stash restore keeps the stash and conflict contents. Use the conflict resolution screen to inspect, import edits, and confirm each resolved file.
 
 - SSH keys are imported, not generated or exported. The passphrase is stored in the Keychain.
 - SSH host keys use trust-on-first-use. A changed host key is rejected; there is no known-hosts management UI yet.

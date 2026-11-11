@@ -2,7 +2,10 @@ import Foundation
 
 struct RepoDetailSnapshot: Codable {
     var branch = ""
+    var detachedOID: String?
     var origin = ""
+    var linkedFolder: String?
+    var upstream: String?
     var branches: [BranchInfo] = []
     var remotes: [RemoteInfo] = []
     var history: [CommitInfo] = []

@@ -15,6 +15,9 @@ failures = []
 for path in CATALOGS:
     data = json.loads(path.read_text())
     for key, entry in data["strings"].items():
+        # Xcode may extract empty UI literals and explicitly non-translatable entries.
+        if not key or entry.get("shouldTranslate") is False:
+            continue
         for language in LANGUAGES:
             value = entry.get("localizations", {}).get(language, {}).get("stringUnit", {}).get("value")
             if not value:

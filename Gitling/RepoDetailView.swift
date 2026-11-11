@@ -4,16 +4,24 @@ import UniformTypeIdentifiers
 
 struct RepoDetailView: View {
     @EnvironmentObject private var store: RepoStore
+    @Environment(\.dynamicTypeSize) private var textSize
     let name: String
 
+    @State private var restorePlan: FileRestorePlan?
+    @State private var preparingRestore = false
+    @State private var pendingSubmodules = false
+    @State private var detachedOID: String?
+    @State private var operation: GitOperationSnapshot?
     @State private var section = 0
     @State private var branch = ""
     @State private var origin = ""
+    @State private var upstream: String?
     @State private var files: [WorkEntry] = []
     @State private var history: [CommitInfo] = []
     @State private var historyHasMore = false
     @State private var historyResetNeeded = true
     @State private var isLoadingHistory = false
+    @State private var isLoadingStatus = false
     @State private var isLoadingMoreHistory = false
     private let historyPageSize = 300
     @State private var changes: [StatusEntry] = []
@@ -36,12 +44,18 @@ struct RepoDetailView: View {
     @State private var cacheRestored = false
     @State private var consoleLines: [ConsoleLine] = []
     @State private var command = ""
+    @State private var isRunningCommand = false
+    @State private var refreshTask: Task<Void, Never>?
     @ScaledMetric(relativeTo: .body) private var commitRowHeight: CGFloat = 56
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                if !branch.isEmpty {
+                if let detachedOID {
+                    DetachedHeadNotice(oid: detachedOID)
+                    NavigationLink("Create Branch to Keep Work") { DetachedBranchPage(name: name) }
+                        .font(.footnote)
+                } else if !branch.isEmpty {
                     Text(branch)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -53,13 +67,18 @@ struct RepoDetailView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Picker("Section", selection: $section) {
-                    Text("Files").tag(0)
-                    Text("Commits").tag(1)
-                    Text("Status").tag(2)
-                    Text("Console").tag(3)
+                if let operation, operation.needsAttention {
+                    NavigationLink {
+                        ConflictResolutionPage(name: name)
+                    } label: {
+                        Label(operation.kind?.title ?? String(localized: "Resolve conflicts"), systemImage: "exclamationmark.triangle")
+                            .font(.subheadline)
+                    }
                 }
-                .pickerStyle(.segmented)
+                if pendingSubmodules {
+                    NavigationLink("Resume Submodule Update") { SubmodulePage(name: name) }
+                }
+                RepositorySectionPicker(selection: $section)
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -88,7 +107,7 @@ struct RepoDetailView: View {
             }
         }
         .overlay {
-            if spinnerLoads > 0 || store.isBusy {
+            if spinnerLoads > 0 || store.isBusy || preparingRestore {
                 ZStack {
                     Color.black.opacity(0.12)
                         .ignoresSafeArea()
@@ -106,19 +125,34 @@ struct RepoDetailView: View {
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if section == 1 {
+                NavigationLink {
+                    let ref = selectedBranchInfo.map { ($0.isRemote ? "refs/remotes/" : "refs/heads/") + $0.name }
+                    HistorySearchPage(repo: repoURL, scope: allBranches ? ref.map { .reference($0) } ?? .all : .current, selectedReference: ref)
+                } label: { Label("Search History", systemImage: "magnifyingglass") }
+            } else if section == 0 {
+                NavigationLink { FileSearchPage(repo: repoURL) } label: { Label("Search Files", systemImage: "magnifyingglass") }
+            }
             Button("Operations", systemImage: "ellipsis.circle") {
                 if branches.isEmpty {
-                    Task { await load(showSpinner: true) }
+                    requestLoad(showSpinner: true)
                 }
                 showOperations = true
             }
             .disabled(store.isBusy)
+        }
+        .sheet(item: $restorePlan) { plan in
+            FileRestoreConfirmation(plan: plan, external: linkedFolder != nil, busy: store.isBusy) {
+                restorePlan = nil
+                store.restoreFile(name: name, plan: plan)
+            }
         }
         .sheet(isPresented: $showOperations) {
             RepoOperationsSheet(
                 name: name,
                 branch: branch,
                 origin: origin,
+                upstream: upstream,
                 branches: branches,
                 remotes: remotes,
                 username: $username,
@@ -152,6 +186,7 @@ struct RepoDetailView: View {
             }
         }
         .task(id: store.revision) {
+            refreshTask?.cancel()
             if !cacheRestored {
                 cacheRestored = true
                 if let cached = RepoDetailCache.load(name) {
@@ -164,29 +199,30 @@ struct RepoDetailView: View {
             }
             await load(showSpinner: false)
         }
+        .onDisappear { refreshTask?.cancel() }
         .onChange(of: allBranches) { _, isAll in
             if isAll {
                 resetHistory()
-                Task { await load(showSpinner: false) }
+                requestLoad(showSpinner: false)
             } else {
                 let sameAsCurrent = selectedBranch == branch
                 if selectedBranch != nil { selectedBranch = nil }
                 if !sameAsCurrent {
                     resetHistory()
-                    Task { await load(showSpinner: false) }
+                    requestLoad(showSpinner: false)
                 }
             }
         }
         .onChange(of: selectedBranch) { _, _ in
             guard allBranches else { return }
             resetHistory()
-            Task { await load(showSpinner: false) }
+            requestLoad(showSpinner: false)
         }
         .onChange(of: section) { _, newSection in
             if newSection == 1 {
-                Task { await load(showSpinner: false) }
+                requestLoad(showSpinner: false)
             } else if newSection == 2 {
-                Task { await load(showSpinner: changes.isEmpty) }
+                requestLoad(showSpinner: false)
             }
         }
     }
@@ -303,32 +339,9 @@ struct RepoDetailView: View {
                             NavigationLink {
                                 CommitDetailView(repo: repoURL, commit: row.commit)
                             } label: {
-                                HStack(alignment: .top, spacing: 8) {
-                                    CommitGraphMark(row: row)
-                                        .frame(height: commitRowHeight)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                            Text(String(row.commit.id.prefix(7)))
-                                                .font(.caption2.monospaced())
-                                                .foregroundStyle(.secondary)
-                                            Text(row.commit.summary)
-                                                .font(.body)
-                                                .lineLimit(1)
-                                                .truncationMode(.tail)
-                                        }
-                                        HStack(spacing: 4) {
-                                            Text("\(row.commit.author) · \(row.commit.date.formatted(date: .abbreviated, time: .shortened))")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                            Spacer(minLength: 4)
-                                            branchChips(for: row.commit.id)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 7)
+                                CommitHistoryLabel(row: row, minimumHeight: commitRowHeight) {
+                                    branchChips(for: row.commit.id)
                                 }
-                                .frame(maxWidth: .infinity, minHeight: commitRowHeight, maxHeight: commitRowHeight, alignment: .leading)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 12))
@@ -407,6 +420,8 @@ struct RepoDetailView: View {
     private var statusView: some View {
         List {
             Section("Status") {
+                NavigationLink("Resolve conflicts") { ConflictResolutionPage(name: name) }
+                if isLoadingStatus { ProgressView() }
                 Text(statusText.isEmpty ? String(localized: "No changes") : statusText)
                     .font(.body.monospaced())
                     .textSelection(.enabled)
@@ -416,23 +431,76 @@ struct RepoDetailView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section("Changes") {
-                if changes.isEmpty {
+            Section("Staged Changes") {
+                if changes.filter(\.staged).isEmpty {
                     Text("No changes").foregroundStyle(.secondary)
-                } else {
-                    ForEach(changes) { entry in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.path).font(.body.monospaced())
-                            Text(label(entry))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                }
+                ForEach(changes.filter(\.staged)) { entry in
+                    statusRow(entry, staged: true)
+                }
+            }
+            Section("Unstaged Changes") {
+                if !changes.contains(where: { $0.unstaged || $0.untracked }) {
+                    Text("No changes").foregroundStyle(.secondary)
+                }
+                ForEach(changes.filter { $0.unstaged || $0.untracked }) { entry in
+                    statusRow(entry, staged: false)
                 }
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+    }
+
+    @ViewBuilder
+    private func statusRow(_ entry: StatusEntry, staged: Bool) -> some View {
+        if entry.conflicted == true {
+            NavigationLink {
+                ConflictResolutionPage(name: name)
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.path).font(.body.monospaced())
+                    Label("Resolve conflicts", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            ordinaryStatusRow(entry, staged: staged)
+        }
+    }
+
+    private func ordinaryStatusRow(_ entry: StatusEntry, staged: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NavigationLink {
+                DiffPage(repo: repoURL, path: entry.path, scope: staged ? .staged : .worktree)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.path).font(.body.monospaced())
+                    Text(label(entry)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            FileStatusActions(staged: staged,
+                              canRestore: !staged && !entry.untracked && operation?.needsAttention != true,
+                              busy: store.isBusy || preparingRestore,
+                              onStage: {
+                if staged { store.unstage(name: name, entry: entry) }
+                else { store.stage(name: name, entry: entry) }
+            }, onRestore: { prepareRestore(entry.path) })
+        }
+    }
+
+    private func prepareRestore(_ path: String) {
+        guard !store.isBusy, !preparingRestore else { return }
+        preparingRestore = true
+        let url = repoURL
+        Task {
+            defer { preparingRestore = false }
+            do {
+                restorePlan = try await Task.detached(priority: .userInitiated) {
+                    try GitClient.prepareFileRestore(at: url, path: path)
+                }.value
+            } catch { store.alert = error.localizedDescription }
+        }
     }
 
     private var consoleView: some View {
@@ -461,7 +529,7 @@ struct RepoDetailView: View {
                     .font(.body.monospaced())
                     .onSubmit(runCommand)
                 Button("Run", action: runCommand)
-                    .disabled(command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isRunningCommand || command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -469,6 +537,7 @@ struct RepoDetailView: View {
     }
 
     private func label(_ entry: StatusEntry) -> String {
+        if entry.conflicted == true { return String(localized: "Conflicted") }
         if entry.untracked { return String(localized: "Untracked") }
         if entry.staged && entry.unstaged { return String(localized: "Staged and unstaged") }
         if entry.staged { return String(localized: "Staged") }
@@ -477,14 +546,21 @@ struct RepoDetailView: View {
 
     private func runCommand() {
         let line = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !line.isEmpty else { return }
+        guard !line.isEmpty, !isRunningCommand else { return }
         command = ""
+        isRunningCommand = true
         let url = repoURL
-        let output = GitClient.commandOutput(at: url, line: line)
-        consoleLines.append(ConsoleLine(command: line, output: output))
+        Task {
+            let output = await Task.detached(priority: .userInitiated) {
+                GitClient.commandOutput(at: url, line: line)
+            }.value
+            consoleLines.append(ConsoleLine(command: line, output: output))
+            isRunningCommand = false
+        }
     }
 
     private func applyCache(_ cached: RepoDetailSnapshot) {
+        detachedOID = cached.detachedOID
         branch = cached.branch
         origin = cached.origin
         branches = cached.branches
@@ -500,7 +576,13 @@ struct RepoDetailView: View {
         }
         savedAccount = store.accountUsername(for: cached.origin, repoName: name)
             ?? GitClient.host(of: cached.origin).flatMap { KeychainStore.load(host: $0)?.username }
-        linkedFolder = GitClient.linkedFolderName(at: repoURL)
+        linkedFolder = cached.linkedFolder
+        upstream = cached.upstream
+    }
+
+    private func requestLoad(showSpinner: Bool) {
+        refreshTask?.cancel()
+        refreshTask = Task { await load(showSpinner: showSpinner) }
     }
 
     private func load(showSpinner: Bool) async {
@@ -508,42 +590,49 @@ struct RepoDetailView: View {
         let generation = loadGeneration
         let url = repoURL
         let sectionAtStart = section
+        isLoadingStatus = sectionAtStart == 2
         let everyBranch = allBranches
         let branchFilter = selectedBranch
         loadError = nil
         if showSpinner { spinnerLoads += 1 }
         defer {
             if showSpinner { spinnerLoads = max(0, spinnerLoads - 1) }
+            if generation == loadGeneration { isLoadingStatus = false }
         }
 
-        let header = await Task.detached { () -> HeaderData in
-            let summary = GitClient.summary(at: url)
-            let branches = (try? GitClient.branches(at: url)) ?? []
-            let remotes = (try? GitClient.remotes(at: url)) ?? []
-            return HeaderData(
-                branch: summary?.branch ?? "",
-                origin: summary?.origin ?? "",
-                branches: branches,
-                remotes: remotes,
-                hasSummary: summary != nil
-            )
-        }.value
-        guard generation == loadGeneration else { return }
-        if header.hasSummary {
-            branch = header.branch
-            origin = header.origin
+        let header: RepositoryHeader
+        do {
+            let loaded = try await Task.detached(priority: .userInitiated) {
+                (try GitClient.header(at: url), try GitClient.operation(at: url))
+            }.value
+            header = loaded.0
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+            operation = loaded.1
+        } catch {
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+            loadError = error.localizedDescription
+            return
         }
+        guard generation == loadGeneration, !Task.isCancelled else { return }
+        detachedOID = header.detachedOID
+        pendingSubmodules = header.pendingSubmodules
+        branch = header.branch
+        origin = header.origin
         branches = header.branches
         remotes = header.remotes
         savedAccount = store.accountUsername(for: header.origin, repoName: name)
             ?? GitClient.host(of: header.origin).flatMap { KeychainStore.load(host: $0)?.username }
-        linkedFolder = GitClient.linkedFolderName(at: repoURL)
+        linkedFolder = header.linkedFolder
+        upstream = header.upstream
 
         var snapshot = RepoDetailCache.load(name) ?? RepoDetailSnapshot()
+        snapshot.detachedOID = detachedOID
         snapshot.branch = branch
         snapshot.origin = origin
         snapshot.branches = branches
         snapshot.remotes = remotes
+        snapshot.linkedFolder = linkedFolder
+        snapshot.upstream = upstream
         snapshot.allBranches = everyBranch
         snapshot.selectedBranch = branchFilter
 
@@ -563,7 +652,7 @@ struct RepoDetailView: View {
                 }
             }.value
             isLoadingHistory = false
-            guard generation == loadGeneration else { return }
+            guard generation == loadGeneration, !Task.isCancelled else { return }
             loadError = historyData.error
             if historyData.error == nil {
                 history = historyData.commits
@@ -575,17 +664,22 @@ struct RepoDetailView: View {
 
         if sectionAtStart == 2 {
             let branchName = branch
-            let statusData = await Task.detached { () -> StatusData in
-                let changes = (try? GitClient.status(at: url)) ?? []
-                let sync = GitClient.syncCounts(at: url)
-                let text = GitClient.statusText(
-                    entries: changes,
-                    branch: branchName,
-                    sync: sync
-                )
-                return StatusData(changes: changes, sync: sync, text: text)
+            let detached = detachedOID
+            let statusData = await Task.detached(priority: .userInitiated) { () -> StatusData in
+                do {
+                    let changes = try GitClient.status(at: url)
+                    let sync = GitClient.syncCounts(at: url)
+                    let text = GitClient.statusText(entries: changes, branch: branchName, sync: sync, detachedOID: detached)
+                    return StatusData(changes: changes, sync: sync, text: text, error: nil)
+                } catch {
+                    return StatusData(changes: [], sync: nil, text: "", error: error.localizedDescription)
+                }
             }.value
-            guard generation == loadGeneration else { return }
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+            if let error = statusData.error {
+                loadError = error
+                return
+            }
             changes = statusData.changes
             sync = statusData.sync
             statusText = statusData.text
@@ -646,14 +740,6 @@ struct RepoDetailView: View {
         }
     }
 
-    private struct HeaderData {
-        var branch: String
-        var origin: String
-        var branches: [BranchInfo]
-        var remotes: [RemoteInfo]
-        var hasSummary: Bool
-    }
-
     private struct HistoryData {
         var commits: [CommitInfo]
         var error: String?
@@ -663,6 +749,7 @@ struct RepoDetailView: View {
         var changes: [StatusEntry]
         var sync: SyncCounts?
         var text: String
+        var error: String?
     }
 }
 
@@ -710,14 +797,21 @@ private struct FileBrowser: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemGroupedBackground))
-        .task(id: revision) { load() }
+        .task(id: "\(repo.path):\(directory):\(revision)") { await load() }
     }
 
-    private func load() {
+    private func load() async {
+        let repo = repo
+        let directory = directory
         do {
-            entries = try GitClient.entries(at: repo, directory: directory)
+            let loaded = try await Task.detached(priority: .userInitiated) {
+                try GitClient.entries(at: repo, directory: directory)
+            }.value
+            guard !Task.isCancelled else { return }
+            entries = loaded
             error = nil
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
         }
     }
@@ -859,7 +953,7 @@ private enum DiffStyler {
     }
 }
 
-private struct CommitDetailView: View {
+struct CommitDetailView: View {
     let repo: URL
     let commit: CommitInfo
     @State private var text = ""
@@ -913,6 +1007,7 @@ private struct RepoOperationsSheet: View {
     let name: String
     let branch: String
     let origin: String
+    let upstream: String?
     let branches: [BranchInfo]
     let remotes: [RemoteInfo]
     @Binding var username: String
@@ -924,6 +1019,7 @@ private struct RepoOperationsSheet: View {
     let isLoading: Bool
 
     @State private var newBranch = ""
+    @State private var selectedRemote = ""
     @State private var mergeTarget = ""
     @State private var rebaseTarget = ""
     @State private var cherryPickCommit = ""
@@ -939,19 +1035,24 @@ private struct RepoOperationsSheet: View {
             List {
                 Section("Sync") {
                     accountFields
-                    Button("Fetch") { saveCredentials(); sync(fetch: true) }
-                        .disabled(store.isBusy || origin.isEmpty)
-                    Button("Pull") { saveCredentials(); sync(fetch: false) }
-                        .disabled(store.isBusy || origin.isEmpty)
+                    Picker("Remote", selection: $selectedRemote) {
+                        Text("Automatic (upstream)").tag("")
+                        ForEach(remotes) { remote in Text(remote.name).tag(remote.name) }
+                    }
+                    LabeledContent("Upstream", value: upstream ?? String(localized: "None"))
+                    Text("Pull follows the upstream branch.").font(.caption).foregroundStyle(.secondary)
+                    Button("Fetch") { sync(fetch: true) }
+                        .disabled(store.isBusy || remotes.isEmpty)
+                    Button("Pull") { sync(fetch: false) }
+                        .disabled(store.isBusy || remotes.isEmpty)
                     Button("Push") {
-                        saveCredentials()
-                        let creds = store.account(for: origin, repoName: name, username: username, secret: secret)
-                        store.push(name: name, username: creds.username, secret: creds.secret)
+                        store.push(name: name, username: username, secret: secret, remoteName: selectedRemote.isEmpty ? nil : selectedRemote)
                         dismiss()
                     }
-                    .disabled(store.isBusy || origin.isEmpty)
+                    .disabled(store.isBusy || remotes.isEmpty)
                 }
                 Section("Changes") {
+                    NavigationLink("Resolve conflicts") { ConflictResolutionPage(name: name) }
                     TextField("Commit message", text: $message, axis: .vertical)
                         .lineLimit(2...4)
                     Button("Stage All") { store.stageAll(name: name); dismiss() }
@@ -963,9 +1064,13 @@ private struct RepoOperationsSheet: View {
                     }
                     .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     NavigationLink("Diff") { DiffPage(repo: store.repoURL(name)) }
+                    NavigationLink("Stash") { StashPage(name: name) }
+                    NavigationLink("Submodules") { SubmodulePage(name: name) }
+                    NavigationLink("Tags") { TagsPage(name: name) }
                     Button("Reset (HARD)", role: .destructive) { confirmReset = true }
                 }
                 Section("Branches") {
+                    NavigationLink("Manage Branches and Upstream") { BranchManagementPage(name: name) }
                     ForEach(branches) { item in
                         Button {
                             guard !item.isCurrent else { return }
@@ -1074,7 +1179,7 @@ private struct RepoOperationsSheet: View {
                         }
                     }
                     NavigationLink("Raw config") {
-                        ConfigPage(text: GitClient.configText(at: store.repoURL(name)))
+                        ConfigPage(repo: store.repoURL(name))
                     }
                 }
             }
@@ -1134,17 +1239,11 @@ private struct RepoOperationsSheet: View {
         }
     }
 
-    private func saveCredentials() {
-        guard let host = GitClient.host(of: origin), !secret.isEmpty else { return }
-        KeychainStore.save(host: host, username: username, secret: secret)
-    }
-
     private func sync(fetch: Bool) {
-        let creds = store.account(for: origin, repoName: name, username: username, secret: secret)
         if fetch {
-            store.fetch(name: name, username: creds.username, secret: creds.secret)
+            store.fetch(name: name, username: username, secret: secret, remoteName: selectedRemote.isEmpty ? nil : selectedRemote)
         } else {
-            store.pull(name: name, username: creds.username, secret: creds.secret)
+            store.pull(name: name, username: username, secret: secret)
         }
         dismiss()
     }
@@ -1152,40 +1251,53 @@ private struct RepoOperationsSheet: View {
 
 private struct DiffPage: View {
     let repo: URL
+    let path: String?
+    @State private var scope: GitClient.DiffScope
     @State private var text = ""
+    @State private var error: String?
     @State private var isLoading = true
 
+    init(repo: URL, path: String? = nil, scope: GitClient.DiffScope = .worktree) {
+        self.repo = repo
+        self.path = path
+        _scope = State(initialValue: scope)
+    }
+
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if text.isEmpty {
-                Text("No changes")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding()
-            } else {
-                DiffTextView(text: text)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        DiffPanelLayout {
+            DiffScopePicker(scope: $scope).padding(.horizontal)
+        } content: {
+            if isLoading { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
+            else if let error { Text(error).padding() }
+            else if text.isEmpty { Text("No changes").foregroundStyle(.secondary).padding() }
+            else { DiffTextView(text: text).frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
-        .navigationTitle("Diff")
+        .navigationTitle(path ?? String(localized: "Diff"))
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .task(id: scope) {
+            isLoading = true
             let repo = repo
-            let value = await Task.detached(priority: .userInitiated) {
-                (try? GitClient.diff(at: repo)) ?? ""
-            }.value
-            guard !Task.isCancelled else { return }
-            text = value.count > 80_000 ? String(value.prefix(80_000)) : value
+            let path = path
+            let selectedScope = scope
+            do {
+                let value = try await Task.detached(priority: .userInitiated) {
+                    try GitClient.diff(at: repo, scope: selectedScope, path: path)
+                }.value
+                guard !Task.isCancelled else { return }
+                text = value.count > 80_000 ? String(value.prefix(80_000)) : value
+                error = nil
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
             isLoading = false
         }
     }
 }
 
 private struct ConfigPage: View {
-    let text: String
+    let repo: URL
+    @State private var text = ""
 
     var body: some View {
         ScrollView {
@@ -1197,10 +1309,16 @@ private struct ConfigPage: View {
         }
         .navigationTitle("Raw config")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            let repo = repo
+            let loaded = await Task.detached(priority: .userInitiated) { GitClient.configText(at: repo) }.value
+            guard !Task.isCancelled else { return }
+            text = loaded
+        }
     }
 }
 
-private struct FilePreview: View {
+struct FilePreview: View {
     let repo: URL
     let relative: String
     let name: String
@@ -1223,7 +1341,13 @@ private struct FilePreview: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             do {
-                text = try GitClient.readText(at: repo, relative: relative)
+                let repo = repo
+                let relative = relative
+                let loaded = try await Task.detached(priority: .userInitiated) {
+                    try GitClient.readText(at: repo, relative: relative)
+                }.value
+                guard !Task.isCancelled else { return }
+                text = loaded
             } catch {
                 self.error = error.localizedDescription
             }

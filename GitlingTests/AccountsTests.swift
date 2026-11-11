@@ -7,8 +7,8 @@ final class AccountsTests: XCTestCase {
         XCTAssertEqual(url.absoluteString, "https://gitlab.example.com:8443/gitlab")
     }
 
-    func testCanonicalGitLabURLRejectsHTTP() {
-        XCTAssertNil(InstanceURL.canonical("http://gitlab.example.com"))
+    func testCanonicalGitLabURLSupportsHTTP() {
+        XCTAssertEqual(InstanceURL.canonical("http://gitlab.example.com")?.absoluteString, "http://gitlab.example.com")
     }
 
     func testAccountMatchesSubpathAndPortOnly() throws {
