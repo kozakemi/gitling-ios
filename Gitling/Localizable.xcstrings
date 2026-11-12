@@ -7639,6 +7639,209 @@
           }
         }
       }
+    },
+    "Contents": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contents" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "内容" } }
+      }
+    },
+    "File History": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "File History" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件历史" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイル履歴" } }
+      }
+    },
+    "Blame": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Blame" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "追溯" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "注釈" } }
+      }
+    },
+    "History follows HEAD through first parents and similar-file renames.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "History follows HEAD through first parents and similar-file renames." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史从 HEAD 起只沿第一父提交前进，并在文件内容相似时跟踪重命名。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "履歴は HEAD から第一親だけをたどり、内容が似ているファイルの名前変更も追います。" } }
+      }
+    },
+    "No commits for this file on the current branch.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No commits for this file on the current branch." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这条历史上没有这个文件的提交。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この履歴に、このファイルのコミットはありません。" } }
+      }
+    },
+    "Load More History": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Load More History" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "加载更多历史" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "さらに履歴を読み込む" } }
+      }
+    },
+    "This commit does not contain this file.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This commit does not contain this file." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这次提交里没有这个文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このコミットにこのファイルはありません。" } }
+      }
+    },
+    "This version is binary.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is binary." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是二进制文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版はバイナリです。" } }
+      }
+    },
+    "This version is too large to show.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is too large to show." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本太大，无法显示。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版は大きすぎて表示できません。" } }
+      }
+    },
+    "This version is not UTF-8 text.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is not UTF-8 text." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本不是 UTF-8 文本。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版は UTF-8 テキストではありません。" } }
+      }
+    },
+    "This version is a symbolic link and was not followed.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is a symbolic link and was not followed." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是符号链接，没有跟随链接目标。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版はシンボリックリンクなので、リンク先は開いていません。" } }
+      }
+    },
+    "This version is a submodule.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is a submodule." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是子模块。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版はサブモジュールです。" } }
+      }
+    },
+    "This version is a directory.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This version is a directory." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是目录。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版はディレクトリです。" } }
+      }
+    },
+    "The object for this version is missing.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The object for this version is missing." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本的对象缺失。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この版のオブジェクトがありません。" } }
+      }
+    },
+    "File history follows one file, not a directory.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "File history follows one file, not a directory." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件历史只跟踪一个文件，不跟踪目录。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイル履歴が追うのは 1 つのファイルだけで、ディレクトリは対象外です。" } }
+      }
+    },
+    "Not committed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Not committed" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "尚未提交" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "未コミット" } }
+      }
+    },
+    "Lines %lld–%lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lines %lld–%lld" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "第 %lld–%lld 行" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld–%lld行目" } }
+      }
+    },
+    "View commit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "View commit" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "查看提交" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コミットを表示" } }
+      }
+    },
+    "Added": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Added" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新增" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "追加" } }
+      }
+    },
+    "Modified": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Modified" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "修改" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "変更" } }
+      }
+    },
+    "Deleted": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deleted" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "删除" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "削除" } }
+      }
+    },
+    "Renamed from %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Renamed from %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重命名自 %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%@ から名前変更" } }
+      }
+    },
+    "Could not read file history.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not read file history." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取文件历史。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイル履歴を読み取れませんでした。" } }
+      }
+    },
+    "Could not read that file version.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not read that file version." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取这个文件版本。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイル版を読み取れませんでした。" } }
+      }
+    },
+    "Could not blame this file.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not blame this file." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法追溯这个文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルを注釈できませんでした。" } }
+      }
+    },
+    "Nothing to blame in this file.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nothing to blame in this file." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个文件没有可追溯的内容。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルには注釈できる内容がありません。" } }
+      }
+    },
+    "The committed version of this file is too large to blame.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The committed version of this file is too large to blame." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个文件已提交的版本太大，无法追溯。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルのコミット済みの版は大きすぎて注釈できません。" } }
+      }
+    },
+    "This file is binary and cannot be blamed.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This file is binary and cannot be blamed." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个文件是二进制文件，无法追溯。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルはバイナリなので注釈できません。" } }
+      }
+    },
+    "History before this commit was not inspected, so these lines may be older.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "History before this commit was not inspected, so these lines may be older." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未检查这次提交之前的历史，这些行可能更早。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このコミットより前の履歴は調べていないため、これらの行はさらに古い可能性があります。" } }
+      }
     }
   },
   "version": "1.0"

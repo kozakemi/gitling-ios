@@ -20,7 +20,7 @@ so other editors can modify files.
 
 ## Progress and roadmap
 
-[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-11.
+[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-12.
 
 ## Features
 
@@ -33,6 +33,7 @@ so other editors can modify files.
 - Submodule status, initialization, updates, and recursion, with dirty-worktree protection and resumable failures ([details](docs/submodules.md))
 - Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection ([details](docs/tags-and-diff-layout.md))
 - Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination ([details](docs/repository-search.md))
+- File history, historical versions, worktree blame with commit navigation, and basic syntax highlighting ([details](docs/file-inspection.md))
 - Support `feature/topic` branch names, branch renaming, and safe deletion of merged branches
 - Set or clear upstream branches; select a remote for Fetch/Push, with default sync following the upstream remote and branch name
 

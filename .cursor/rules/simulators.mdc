@@ -1,0 +1,13 @@
+---
+description: Gitling iOS approved local simulators and offline test constraints
+alwaysApply: true
+---
+
+Read and follow the repository root AGENTS.md before testing.
+
+Local simulator allowlist:
+- Default: 0ED9A62A-B9F4-4BC9-AA3B-0CF0B3D93F1E (iPhone 16 Pro, iOS 18.6).
+- Duo only when the task requests it: D2A546B7-9C01-4668-B2EE-F13A1B9FC9D5 (Gitling Duo Layout QA, iOS 27.2).
+- Protected user device: 28474273-D7E2-4599-9D76-43642D39CB22. Never install, test, erase, delete, or automate it.
+
+Do not create, clone, erase, delete, or auto-select other simulators. Do not download runtimes. If an allowed device is unavailable, stop simulator work and report; do not create a replacement. Use explicit UDID and `-parallel-testing-enabled NO`; prefer `./scripts/test.sh`. Avoid concurrent runs on the same device. No `--force` or `--yolo` to bypass denied shell commands. Reuse existing offline fixtures and do not fetch the original performance server. CI may select an existing device on its ephemeral host, without clones.
