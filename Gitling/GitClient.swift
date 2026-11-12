@@ -3366,3 +3366,577 @@ extension GitClient {
         } catch { access?.stop(); throw error }
     }
 }
+
+// MARK: - Read-only file history, historical blobs, and blame
+extension GitClient {
+    private struct IndexedFile {
+        var oid: git_oid
+        var mode: UInt32
+        var type: git_object_t
+    }
+
+    /// History of one file reachable from HEAD by first parents only.
+    /// A rename is followed when the path is absent in the first parent and
+    /// Git's default similarity check treats another file in that parent as the source.
+    /// Copies, later parents, and interactive rename editing are out of scope.
+    static func fileHistory(at repoURL: URL, path: String, cancellation: SearchCancellation = .init()) throws -> RepositorySearchCursor<FileHistoryEntry> {
+        try cancellation.check()
+        try requireFilePath(path)
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        guard let head = try headCommit(opened.repo) else {
+            return emptyFileHistory(cancellation)
+        }
+        defer { git_commit_free(head) }
+        var tree: OpaquePointer?
+        try check(git_commit_tree(&tree, head), String(localized: "Could not read file history."))
+        defer { git_tree_free(tree) }
+        if let current = try indexedFile(tree, path), current.type == GIT_OBJECT_TREE {
+            throw GitFailure.message(String(localized: "File history follows one file, not a directory."))
+        }
+        var walker: OpaquePointer?
+        try check(git_revwalk_new(&walker, opened.repo), String(localized: "Could not read file history."))
+        guard let walker else { throw WorkingTreeError.notFound }
+        var transferred = false
+        defer { if !transferred { git_revwalk_free(walker) } }
+        // Topological order keeps descendants before ancestors, including commits
+        // created in the same second. Stopping at the introducing commit is then safe.
+        git_revwalk_sorting(walker, UInt32(GIT_SORT_TOPOLOGICAL.rawValue | GIT_SORT_TIME.rawValue))
+        try check(git_revwalk_simplify_first_parent(walker), String(localized: "Could not read file history."))
+        try check(git_revwalk_push_head(walker), String(localized: "Could not read file history."))
+        let reader = FileHistoryReader(opened: opened, walker: walker, path: path)
+        transferred = true
+        return .init(cancellation: cancellation) { limit, token in try reader.page(limit: limit, cancellation: token) }
+    }
+
+    static func fileRevision(at repoURL: URL, commit id: String, path: String) throws -> FileBlobState {
+        try requireFilePath(path)
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard trimmed.count == 40, trimmed.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
+            throw GitFailure.message(String(localized: "Could not read that file version."))
+        }
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        defer { withExtendedLifetime(opened) {} }
+        var oid = git_oid()
+        guard git_oid_fromstr(&oid, trimmed) == 0 else {
+            throw GitFailure.message(String(localized: "Could not read that file version."))
+        }
+        var commit: OpaquePointer?
+        if git_commit_lookup(&commit, opened.repo, &oid) < 0 { return .missingObject }
+        defer { git_commit_free(commit) }
+        guard let commit else { return .missingObject }
+        var tree: OpaquePointer?
+        if git_commit_tree(&tree, commit) < 0 { return .missingObject }
+        defer { git_tree_free(tree) }
+        guard let file = try indexedFile(tree, path) else { return .missing }
+        return try blobState(opened.repo, file)
+    }
+
+    /// Blame the worktree text of one regular UTF-8 file against the HEAD commit read once here.
+    /// Lines that differ from that commit have no commit. The walk uses the first parent only.
+    /// Untracked files are reported as uncommitted.
+    ///
+    /// `git_blame_file` and `git_blame_buffer` are synchronous and offer no cancellation callback.
+    /// `cancellation` is checked before opening, before and after each libgit2 blame call, and in
+    /// the pre-walk at each commit, path, diff entry, and candidate blob. Single libgit2 calls in
+    /// the pre-walk (tree diff, `git_diff_find_similar`) and in blame run to completion once started.
+    /// The pre-walk picks `oldest_commit` from an estimate of the blob bytes blame will read
+    /// (see `BlameLimits`); it is not a hard cap on memory or CPU. `beforeBlame` runs after HEAD
+    /// is resolved and checked, right before libgit2 starts. `onCancellationCheck` runs right
+    /// before each pre-walk check.
+    static func blame(at repoURL: URL, path: String, cancellation: SearchCancellation = .init(),
+                      limits: BlameLimits = .standard, beforeBlame: () throws -> Void = {},
+                      onCancellationCheck: () throws -> Void = {}) throws -> [BlameSpan] {
+        func stopIfCancelled() throws {
+            try onCancellationCheck()
+            try cancellation.check()
+        }
+        try cancellation.check()
+        try requireFilePath(path)
+        _ = ready
+        let access = try WorktreeLink.beginForFileRestore(repoName: repoURL.lastPathComponent)
+        let opened: OpenRepo
+        do { opened = try OpenRepo(path: repoURL.path, access: access) }
+        catch { access?.stop(); throw error }
+        defer { withExtendedLifetime(opened) {} }
+        let root = try SearchWorktreeAccess.root(access?.url ?? repoURL)
+        let text = try SearchWorktreeAccess.preview(root: root, path: path)
+        guard !text.utf8.contains(0) else {
+            throw GitFailure.message(String(localized: "This file is binary and cannot be blamed."))
+        }
+        let lines = splitLines(text)
+        try cancellation.check()
+        guard let head = try headCommit(opened.repo) else {
+            return lines.isEmpty ? [] : [uncommitted(lines, path: path)]
+        }
+        defer { git_commit_free(head) }
+        let newest = git_commit_id(head)!.pointee
+        var tree: OpaquePointer?
+        try check(git_commit_tree(&tree, head), String(localized: "Could not blame this file."))
+        defer { git_tree_free(tree) }
+        guard let file = try indexedFile(tree, path) else {
+            return lines.isEmpty ? [] : [uncommitted(lines, path: path)]
+        }
+        if file.type == GIT_OBJECT_TREE {
+            throw GitFailure.message(String(localized: "File history follows one file, not a directory."))
+        }
+        guard file.type == GIT_OBJECT_BLOB,
+              file.mode != UInt32(GIT_FILEMODE_LINK.rawValue),
+              file.mode != UInt32(GIT_FILEMODE_COMMIT.rawValue) else {
+            throw GitFailure.message(String(localized: "Could not blame this file."))
+        }
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, opened.repo), String(localized: "Could not blame this file."))
+        defer { git_odb_free(database) }
+        guard let database else { throw GitFailure.message(String(localized: "Could not blame this file.")) }
+        let committedSize = try blameableBlobSize(opened.repo, database, file.oid)
+        let boundary = try blameBoundary(opened.repo, database, head: head, path: path,
+                                         spent: committedSize, limits: limits, stopIfCancelled: stopIfCancelled)
+        try beforeBlame()
+        try cancellation.check()
+        var options = git_blame_options()
+        try check(git_blame_options_init(&options, UInt32(GIT_BLAME_OPTIONS_VERSION)), String(localized: "Could not blame this file."))
+        options.flags = UInt32(GIT_BLAME_FIRST_PARENT.rawValue)
+        // Both ends are fixed OIDs, so a concurrent branch switch cannot change what libgit2 reads.
+        options.newest_commit = newest
+        options.oldest_commit = boundary.oldest
+        var base: OpaquePointer?
+        try path.withCString { pointer in
+            try check(git_blame_file(&base, opened.repo, pointer, &options), String(localized: "Could not blame this file."))
+        }
+        defer { git_blame_free(base) }
+        try cancellation.check()
+        let data = Data(text.utf8)
+        var blamed: OpaquePointer?
+        if data.isEmpty {
+            try check(git_blame_buffer(&blamed, base, "", 0), String(localized: "Could not blame this file."))
+        } else {
+            try data.withUnsafeBytes { raw in
+                guard let pointer = raw.bindMemory(to: CChar.self).baseAddress else {
+                    throw GitFailure.message(String(localized: "Could not blame this file."))
+                }
+                try check(git_blame_buffer(&blamed, base, pointer, data.count), String(localized: "Could not blame this file."))
+            }
+        }
+        defer { git_blame_free(blamed) }
+        try cancellation.check()
+        guard let blamed else { return [] }
+        let spans = blameSpans(blamed, lines: lines, repo: opened.repo, path: path, limitedAt: boundary.limited ? boundary.oldest : nil)
+        return spans.isEmpty && !lines.isEmpty ? [uncommitted(lines, path: path)] : spans
+    }
+
+    /// Size of a blob read from its object header only, or nil when missing or not a blob.
+    private static func blobSize(_ database: OpaquePointer, _ oid: git_oid) -> Int? {
+        var oid = oid
+        var length = 0
+        var kind = GIT_OBJECT_INVALID
+        guard git_odb_read_header(&length, &kind, database, &oid) == 0, kind == GIT_OBJECT_BLOB else { return nil }
+        return length
+    }
+
+    /// The committed version libgit2 blames against must itself be a small, non-binary blob,
+    /// whatever the size of the worktree file.
+    private static func blameableBlobSize(_ repo: OpaquePointer, _ database: OpaquePointer, _ oid: git_oid) throws -> Int {
+        guard let size = blobSize(database, oid) else {
+            throw GitFailure.message(String(localized: "Could not blame this file."))
+        }
+        guard size <= FileInspection.maximumBytes else {
+            throw GitFailure.message(String(localized: "The committed version of this file is too large to blame."))
+        }
+        var oid = oid
+        var blob: OpaquePointer?
+        try check(git_blob_lookup(&blob, repo, &oid), String(localized: "Could not blame this file."))
+        defer { git_blob_free(blob) }
+        guard git_blob_is_binary(blob) == 0 else {
+            throw GitFailure.message(String(localized: "This file is binary and cannot be blamed."))
+        }
+        return size
+    }
+
+    private enum BlameStep {
+        case next(cost: Int)
+        case origin
+        case limit
+    }
+
+    /// Walks the first-parent history libgit2 blame follows and returns the oldest commit libgit2
+    /// may visit. Blob sizes come from object headers, but a step whose file is absent in the
+    /// parent runs the same rename detection as blame, which reads candidate contents once they
+    /// fit the budget. `limited` is true when the walk stopped for `limits`, an oversized or
+    /// missing object, rather than at the file's origin.
+    private static func blameBoundary(_ repo: OpaquePointer, _ database: OpaquePointer, head: OpaquePointer, path: String,
+                                      spent: Int, limits: BlameLimits,
+                                      stopIfCancelled: () throws -> Void) throws -> (oldest: git_oid, limited: Bool) {
+        var duplicate: OpaquePointer?
+        try check(git_commit_dup(&duplicate, head), String(localized: "Could not blame this file."))
+        guard var commit = duplicate else { throw GitFailure.message(String(localized: "Could not blame this file.")) }
+        defer { git_commit_free(commit) }
+        var paths: Set<String> = [path]
+        var current = path
+        var remaining = limits.bytes - spent
+        var visited = 1
+        while true {
+            try stopIfCancelled()
+            let oldest = git_commit_id(commit)!.pointee
+            guard git_commit_parentcount(commit) > 0 else { return (oldest, false) }
+            guard visited < limits.commits, remaining >= 0 else { return (oldest, true) }
+            var parent: OpaquePointer?
+            guard git_commit_parent(&parent, commit, 0) == 0, let next = parent else { return (oldest, true) }
+            let step: BlameStep
+            do {
+                step = try blameStep(repo, database, child: commit, parent: next, paths: &paths, current: &current,
+                                     remaining: remaining, stopIfCancelled: stopIfCancelled)
+            }
+            catch { git_commit_free(next); throw error }
+            switch step {
+            case .origin:
+                git_commit_free(next)
+                return (oldest, false)
+            case .limit:
+                git_commit_free(next)
+                return (oldest, true)
+            case .next(let cost):
+                remaining -= cost
+                git_commit_free(commit)
+                commit = next
+                visited += 1
+            }
+        }
+    }
+
+    private static func blameStep(_ repo: OpaquePointer, _ database: OpaquePointer, child: OpaquePointer, parent: OpaquePointer,
+                                  paths: inout Set<String>, current: inout String, remaining: Int,
+                                  stopIfCancelled: () throws -> Void) throws -> BlameStep {
+        var childTree: OpaquePointer?
+        var parentTree: OpaquePointer?
+        defer { git_tree_free(childTree); git_tree_free(parentTree) }
+        guard git_commit_tree(&childTree, child) == 0, git_commit_tree(&parentTree, parent) == 0 else { return .limit }
+        let gitlink = UInt32(GIT_FILEMODE_COMMIT.rawValue)
+        var loaded: Set<String> = []
+        var cost = 0
+        func load(_ oid: git_oid) -> Bool {
+            guard loaded.insert(format(oid)).inserted else { return true }
+            guard let size = blobSize(database, oid), size <= FileInspection.maximumBytes else { return false }
+            cost += size
+            return cost <= remaining
+        }
+        // libgit2 detects changes with a pathspec, so glob characters can match more than one path.
+        var changed = paths.contains { $0.rangeOfCharacter(from: CharacterSet(charactersIn: "*?[\\")) != nil }
+        for name in paths {
+            try stopIfCancelled()
+            // libgit2 loads the parent's version of the path it follows at every step, even when
+            // unchanged, and on a changed step one for every followed path the diff reports,
+            // deletions included. Counting every followed path covers both.
+            let before = try indexedFile(parentTree, name)
+            if let before, before.type == GIT_OBJECT_BLOB, before.mode != gitlink, !load(before.oid) { return .limit }
+            if !changed { changed = try !sameFile(indexedFile(childTree, name), before) }
+        }
+        let previous = try indexedFile(parentTree, current)
+        var renamed: String?
+        if changed {
+            // libgit2 then diffs the whole trees with rename detection, which may read every candidate.
+            try stopIfCancelled()
+            guard let scan = try renameCandidates(repo, parentTree, childTree, paths: paths,
+                                                  stopIfCancelled: stopIfCancelled) else { return .limit }
+            for oid in scan.blobs {
+                try stopIfCancelled()
+                if !load(oid) { return .limit }
+            }
+            if scan.findsRenames {
+                // Like libgit2, follow the source of every rename onto a followed path, so later
+                // steps count the versions blame will load under those names too.
+                for rename in try renames(parent: parent, child: child, repo: repo, stopIfCancelled: stopIfCancelled)
+                where rename.old != rename.new && paths.contains(rename.new) {
+                    paths.insert(rename.old)
+                    if rename.new == current { renamed = rename.old }
+                }
+            }
+        }
+        guard let previous else {
+            guard let renamed else { return .origin }
+            current = renamed
+            return .next(cost: cost)
+        }
+        return previous.type == GIT_OBJECT_BLOB && previous.mode != gitlink ? .next(cost: cost) : .origin
+    }
+
+    /// Blobs a full tree-to-tree diff with rename detection may read: `git_diff_find_similar` may
+    /// compare any added file with any deleted one. `findsRenames` is true when it would run
+    /// with a followed path among the added files. The diff call itself cannot be interrupted;
+    /// its entries are checked one by one.
+    private static func renameCandidates(_ repo: OpaquePointer, _ parentTree: OpaquePointer?, _ childTree: OpaquePointer?,
+                                         paths: Set<String>,
+                                         stopIfCancelled: () throws -> Void) throws -> (blobs: [git_oid], findsRenames: Bool)? {
+        var options = git_diff_options()
+        git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION))
+        options.flags = UInt32(GIT_DIFF_SKIP_BINARY_CHECK.rawValue)
+        var diff: OpaquePointer?
+        guard git_diff_tree_to_tree(&diff, repo, parentTree, childTree, &options) == 0, let diff else { return nil }
+        defer { git_diff_free(diff) }
+        let gitlink = UInt32(GIT_FILEMODE_COMMIT.rawValue)
+        var added: [git_oid] = []
+        var deleted: [git_oid] = []
+        var followedAdded = false
+        for index in 0..<git_diff_num_deltas(diff) {
+            try stopIfCancelled()
+            guard let delta = git_diff_get_delta(diff, index)?.pointee else { continue }
+            if delta.status == GIT_DELTA_ADDED, UInt32(delta.new_file.mode) != gitlink {
+                added.append(delta.new_file.id)
+                if let name = delta.new_file.path, paths.contains(String(cString: name)) { followedAdded = true }
+            } else if delta.status == GIT_DELTA_DELETED, UInt32(delta.old_file.mode) != gitlink {
+                deleted.append(delta.old_file.id)
+            }
+        }
+        guard !added.isEmpty, !deleted.isEmpty else { return ([], false) }
+        return (added + deleted, followedAdded)
+    }
+
+    private static func emptyFileHistory(_ cancellation: SearchCancellation) -> RepositorySearchCursor<FileHistoryEntry> {
+        .init(cancellation: cancellation) { _, _ in .init(items: [], hasMore: false, scanned: 0) }
+    }
+
+    private static func indexedFile(_ tree: OpaquePointer?, _ path: String) throws -> IndexedFile? {
+        guard let tree else { return nil }
+        var entry: OpaquePointer?
+        let code = git_tree_entry_bypath(&entry, tree, path)
+        if matches(code, GIT_ENOTFOUND) { return nil }
+        try check(code, String(localized: "Could not read file history."))
+        defer { git_tree_entry_free(entry) }
+        guard let entry, let identifier = git_tree_entry_id(entry) else { return nil }
+        return IndexedFile(
+            oid: identifier.pointee,
+            mode: UInt32(git_tree_entry_filemode(entry).rawValue),
+            type: git_tree_entry_type(entry)
+        )
+    }
+
+    private static func blobState(_ repo: OpaquePointer, _ file: IndexedFile) throws -> FileBlobState {
+        if file.type == GIT_OBJECT_TREE { return .directory }
+        if file.type == GIT_OBJECT_COMMIT || file.mode == UInt32(GIT_FILEMODE_COMMIT.rawValue) {
+            return .gitlink(format(file.oid))
+        }
+        guard file.type == GIT_OBJECT_BLOB else { return .missingObject }
+        var oid = file.oid
+        return try loadBlob(repo, oid: &oid, symlink: file.mode == UInt32(GIT_FILEMODE_LINK.rawValue))
+    }
+
+    private static func loadBlob(_ repo: OpaquePointer, oid: inout git_oid, symlink: Bool) throws -> FileBlobState {
+        var database: OpaquePointer?
+        guard git_repository_odb(&database, repo) == 0, let database else { return .missingObject }
+        defer { git_odb_free(database) }
+        guard let length = blobSize(database, oid) else { return .missingObject }
+        if length > FileInspection.maximumBytes { return .tooLarge }
+        var blob: OpaquePointer?
+        if git_blob_lookup(&blob, repo, &oid) < 0 { return .missingObject }
+        defer { git_blob_free(blob) }
+        guard let blob else { return .missingObject }
+        if !symlink, git_blob_is_binary(blob) == 1 { return .binary }
+        let size = Int(git_blob_rawsize(blob))
+        if size > FileInspection.maximumBytes { return .tooLarge }
+        let data: Data
+        if size == 0 {
+            data = Data()
+        } else if let pointer = git_blob_rawcontent(blob) {
+            data = Data(bytes: pointer, count: size)
+        } else {
+            return .missingObject
+        }
+        guard let text = String(data: data, encoding: .utf8) else { return .notUTF8 }
+        return symlink ? .symlink(text) : .text(text)
+    }
+
+    private static func oidsEqual(_ lhs: git_oid, _ rhs: git_oid) -> Bool {
+        var lhs = lhs
+        var rhs = rhs
+        return git_oid_equal(&lhs, &rhs) == 1
+    }
+
+    private static func sameFile(_ lhs: IndexedFile?, _ rhs: IndexedFile?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (lhs?, rhs?):
+            return lhs.type == rhs.type && lhs.mode == rhs.mode && oidsEqual(lhs.oid, rhs.oid)
+        default: return false
+        }
+    }
+
+    private static func renamedFrom(parent: OpaquePointer, child: OpaquePointer, path: String, repo: OpaquePointer,
+                                    stopIfCancelled: () throws -> Void) throws -> String? {
+        try renames(parent: parent, child: child, repo: repo, stopIfCancelled: stopIfCancelled)
+            .first { $0.new == path && $0.old != path }?.old
+    }
+
+    /// Renames Git's default similarity check finds from `parent` to `child`, in diff order.
+    /// `git_diff_tree_to_tree` and `git_diff_find_similar` each run to completion once started;
+    /// cancellation is checked between them and at each resulting entry.
+    private static func renames(parent: OpaquePointer, child: OpaquePointer, repo: OpaquePointer,
+                                stopIfCancelled: () throws -> Void) throws -> [(new: String, old: String)] {
+        var parentTree: OpaquePointer?
+        var childTree: OpaquePointer?
+        try check(git_commit_tree(&parentTree, parent), String(localized: "Could not read file history."))
+        try check(git_commit_tree(&childTree, child), String(localized: "Could not read file history."))
+        defer { git_tree_free(parentTree); git_tree_free(childTree) }
+        var options = git_diff_options()
+        git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION))
+        var diff: OpaquePointer?
+        try stopIfCancelled()
+        try check(git_diff_tree_to_tree(&diff, repo, parentTree, childTree, &options), String(localized: "Could not read file history."))
+        defer { git_diff_free(diff) }
+        var find = git_diff_find_options()
+        git_diff_find_options_init(&find, UInt32(GIT_DIFF_FIND_OPTIONS_VERSION))
+        find.flags = UInt32(GIT_DIFF_FIND_RENAMES.rawValue)
+        try stopIfCancelled()
+        try check(git_diff_find_similar(diff, &find), String(localized: "Could not read file history."))
+        guard let diff else { return [] }
+        var found: [(new: String, old: String)] = []
+        for index in 0..<git_diff_num_deltas(diff) {
+            try stopIfCancelled()
+            guard let delta = git_diff_get_delta(diff, index), delta.pointee.status == GIT_DELTA_RENAMED,
+                  let newPath = delta.pointee.new_file.path,
+                  let oldPath = delta.pointee.old_file.path else { continue }
+            found.append((new: String(cString: newPath), old: String(cString: oldPath)))
+        }
+        return found
+    }
+
+    private static func splitLines(_ text: String) -> [String] {
+        if text.isEmpty { return [] }
+        var lines = text.components(separatedBy: "\n")
+        if text.hasSuffix("\n") { lines.removeLast() }
+        return lines
+    }
+
+    private static func uncommitted(_ lines: [String], path: String) -> BlameSpan {
+        BlameSpan(commitID: nil, summary: "", author: "", date: nil, startLine: 1, lineCount: max(lines.count, 1), lines: lines, originPath: path)
+    }
+
+    private static func blameSpans(_ blame: OpaquePointer, lines: [String], repo: OpaquePointer, path: String, limitedAt limit: git_oid?) -> [BlameSpan] {
+        var summaries: [String: String] = [:]
+        var result: [BlameSpan] = []
+        for index in 0..<git_blame_get_hunk_count(blame) {
+            guard let hunk = git_blame_get_hunk_byindex(blame, index) else { continue }
+            let raw = hunk.pointee
+            let start = Int(raw.final_start_line_number)
+            let lineCount = Int(raw.lines_in_hunk)
+            guard start > 0, lineCount > 0 else { continue }
+            let lower = min(lines.count, start - 1)
+            let upper = min(lines.count, lower + lineCount)
+            let slice = Array(lines[lower..<upper])
+            var oid = raw.final_commit_id
+            let origin = raw.orig_path.map { String(cString: $0) } ?? path
+            guard git_oid_is_zero(&oid) == 0 else {
+                result.append(BlameSpan(commitID: nil, summary: "", author: "", date: nil, startLine: start, lineCount: lineCount, lines: slice, originPath: origin))
+                continue
+            }
+            let id = format(oid)
+            if summaries[id] == nil { summaries[id] = commitSummary(repo, oid: &oid) }
+            let signature = raw.final_signature
+            result.append(BlameSpan(
+                commitID: id,
+                summary: summaries[id] ?? "",
+                author: signature.map { String(cString: $0.pointee.name) } ?? "",
+                date: signature.map { Date(timeIntervalSince1970: TimeInterval($0.pointee.when.time)) },
+                startLine: start,
+                lineCount: lineCount,
+                lines: slice,
+                originPath: origin,
+                historyLimited: limit.map { oidsEqual($0, oid) } ?? false
+            ))
+        }
+        return result
+    }
+
+    private static func commitSummary(_ repo: OpaquePointer, oid: inout git_oid) -> String {
+        var commit: OpaquePointer?
+        guard git_commit_lookup(&commit, repo, &oid) == 0, let commit else { return "" }
+        defer { git_commit_free(commit) }
+        return git_commit_summary(commit).map { String(String(cString: $0).prefix(8_000)) } ?? ""
+    }
+
+    private static func commitInfo(_ commit: OpaquePointer, oid: git_oid) -> CommitInfo {
+        CommitInfo(
+            id: format(oid),
+            summary: git_commit_summary(commit).map { String(String(cString: $0).prefix(8_000)) } ?? "",
+            author: git_commit_author(commit).map { String(cString: $0.pointee.name) } ?? "",
+            date: Date(timeIntervalSince1970: TimeInterval(git_commit_time(commit)))
+        )
+    }
+
+    private final class FileHistoryReader {
+        let opened: OpenRepo
+        let walker: OpaquePointer
+        var path: String
+        var buffered: FileHistoryEntry?
+        var scanned = 0
+        var ended = false
+
+        init(opened: OpenRepo, walker: OpaquePointer, path: String) {
+            self.opened = opened
+            self.walker = walker
+            self.path = path
+        }
+
+        deinit { git_revwalk_free(walker) }
+
+        func page(limit: Int, cancellation: SearchCancellation) throws -> RepositorySearchPage<FileHistoryEntry> {
+            var result: [FileHistoryEntry] = []
+            if let buffered { result.append(buffered); self.buffered = nil }
+            while result.count < limit, let item = try next(cancellation) { result.append(item) }
+            buffered = try next(cancellation)
+            return .init(items: result, hasMore: buffered != nil, scanned: scanned)
+        }
+
+        private func next(_ cancellation: SearchCancellation) throws -> FileHistoryEntry? {
+            while true {
+                try cancellation.check()
+                if ended { return nil }
+                var oid = git_oid()
+                let code = git_revwalk_next(&oid, walker)
+                if GitClient.matches(code, GIT_ITEROVER) { ended = true; return nil }
+                try GitClient.check(code, String(localized: "Could not read file history."))
+                scanned += 1
+                if let entry = try change(at: oid, cancellation: cancellation) { return entry }
+            }
+        }
+
+        private func change(at oid: git_oid, cancellation: SearchCancellation) throws -> FileHistoryEntry? {
+            var oid = oid
+            var child: OpaquePointer?
+            try GitClient.check(git_commit_lookup(&child, opened.repo, &oid), String(localized: "Could not read file history."))
+            defer { git_commit_free(child) }
+            guard let child else { return nil }
+            var childTree: OpaquePointer?
+            try GitClient.check(git_commit_tree(&childTree, child), String(localized: "Could not read file history."))
+            defer { git_tree_free(childTree) }
+            let current = try GitClient.indexedFile(childTree, path)
+            var parent: OpaquePointer?
+            if git_commit_parentcount(child) > 0 {
+                try GitClient.check(git_commit_parent(&parent, child, 0), String(localized: "Could not read file history."))
+            }
+            defer { git_commit_free(parent) }
+            var parentTree: OpaquePointer?
+            if let parent {
+                try GitClient.check(git_commit_tree(&parentTree, parent), String(localized: "Could not read file history."))
+            }
+            defer { git_tree_free(parentTree) }
+            let previous = try GitClient.indexedFile(parentTree, path)
+            if GitClient.sameFile(current, previous) { return nil }
+            let info = GitClient.commitInfo(child, oid: oid)
+            if current == nil {
+                return FileHistoryEntry(commit: info, path: path, kind: .deleted, previousPath: nil)
+            }
+            if previous == nil {
+                if let parent, let old = try GitClient.renamedFrom(parent: parent, child: child, path: path, repo: opened.repo,
+                                                                    stopIfCancelled: { try cancellation.check() }) {
+                    let entry = FileHistoryEntry(commit: info, path: path, kind: .renamed, previousPath: old)
+                    path = old
+                    return entry
+                }
+                ended = true
+                return FileHistoryEntry(commit: info, path: path, kind: .added, previousPath: nil)
+            }
+            return FileHistoryEntry(commit: info, path: path, kind: .modified, previousPath: nil)
+        }
+    }
+}

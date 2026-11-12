@@ -15,7 +15,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 
 ## 进度与后续计划
 
-[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-11）。
+[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-12）。
 
 ## 功能
 
@@ -28,6 +28,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - 子模块状态、初始化、更新及递归处理，保护本地修改并支持失败后重试（[说明](docs/submodules.md)）
 - Tag 列表、详情及安全检出，明确 detached HEAD 并保护未提交修改（[说明](docs/tags-and-diff-layout.md)）
 - 提交正文、作者/邮箱和 OID 的完整历史搜索，以及递归文件名/路径搜索，支持取消和分页（[说明](docs/repository-search.md)）
+- 文件历史、历史版本、工作区 Blame 与提交跳转，以及基础语法高亮（[说明](docs/file-inspection.md)）
 - 支持 `feature/topic` 分支名、重命名，以及安全删除已合并分支
 - 设置或清除上游分支；Fetch/Push 可选择远程，默认同步跟随上游及其实际分支名
 

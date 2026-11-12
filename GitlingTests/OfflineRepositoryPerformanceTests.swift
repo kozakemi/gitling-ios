@@ -250,4 +250,30 @@ final class OfflineRepositoryPerformanceTests: XCTestCase {
         try record("search.real-worktree-nested-paths", fileSamples)
     }
 
+    func testFileHistoryAndBlameOnRealRepositoryStayOffTheMainInteractionPath() throws {
+        let (repo, _) = try workingCopy()
+        let files = try GitClient.entries(at: repo, directory: "").filter { !$0.isDirectory }
+        guard let file = files.first(where: { (try? GitClient.readText(at: repo, relative: $0.path)) != nil }) else {
+            throw XCTSkip("The local fixture has no UTF-8 file at the repository root.")
+        }
+        var history: [Double] = []
+        for _ in 0..<3 {
+            history.append(try elapsed {
+                let page = try GitClient.fileHistory(at: repo, path: file.path).nextPage(limit: 50)
+                XCTAssertFalse(page.items.isEmpty)
+            })
+        }
+        try record("file-history.first-page.\(file.path)", history)
+        var blame: [Double] = []
+        for _ in 0..<3 {
+            blame.append(try elapsed {
+                _ = try GitClient.blame(at: repo, path: file.path)
+            })
+        }
+        try record("file-blame.\(file.path)", blame)
+        let head = try GitClient.history(at: repo, limit: 1)[0].id
+        XCTAssertEqual(try GitClient.fileRevision(at: repo, commit: head, path: file.path), .text(try GitClient.readText(at: repo, relative: file.path)))
+        XCTAssertTrue(try GitClient.status(at: repo).isEmpty)
+    }
+
 }
