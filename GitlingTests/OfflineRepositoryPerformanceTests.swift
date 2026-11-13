@@ -105,6 +105,39 @@ final class OfflineRepositoryPerformanceTests: XCTestCase {
         }
     }
 
+    func testFixedCommitComparisonListsAndSingleFileDiffOnExistingOfflineRepository() throws {
+        let (repo, manifest) = try workingCopy()
+        let base = try GitClient.resolveComparisonCommit(at: repo, input: manifest.headOID)
+        let head = try Data(contentsOf: repo.appendingPathComponent(".git/HEAD"))
+        let index = try Data(contentsOf: repo.appendingPathComponent(".git/index"))
+        let refs = try GitClient.branches(at: repo).map { $0.id + ":" + ($0.target ?? "") }
+        for target in manifest.targets {
+            let selected = try GitClient.resolveComparisonCommit(at: repo, input: "refs/remotes/origin/" + target.branch)
+            let comparison = CommitComparison(base: base, target: selected)
+            var list = ComparisonListResult(), samples: [Double] = []
+            for _ in 0..<3 {
+                samples.append(try elapsed { list = try GitClient.comparisonFiles(at: repo, comparison: comparison) })
+            }
+            XCTAssertFalse(list.files.isEmpty)
+            XCTAssertFalse(list.truncated)
+            try record("compare." + target.branch + ".tree-list", samples)
+            if let file = list.files.first(where: { $0.path.hasSuffix(".c") && ($0.oldSize ?? 0) <= FileInspection.maximumBytes && ($0.newSize ?? 0) <= FileInspection.maximumBytes }) {
+                var diffs: [Double] = []
+                for _ in 0..<3 {
+                    diffs.append(try elapsed {
+                        let diff = try GitClient.comparisonFileDiff(at: repo, comparison: comparison, file: file)
+                        if case .patch(let patch) = diff.content { XCTAssertLessThanOrEqual(patch.text.utf8.count, ComparisonLimits.standard.maximumPatchBytes) }
+                    })
+                }
+                try record("compare." + target.branch + ".single-file", diffs)
+            } else { XCTFail("Offline fixture should include a bounded C source change") }
+        }
+        XCTAssertEqual(try Data(contentsOf: repo.appendingPathComponent(".git/HEAD")), head)
+        XCTAssertEqual(try Data(contentsOf: repo.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try GitClient.branches(at: repo).map { $0.id + ":" + ($0.target ?? "") }, refs)
+        XCTAssertTrue(try GitClient.status(at: repo).isEmpty)
+    }
+
     func testRealRepositoryHistoryFirstPagePaginationAndGraph() throws {
         let (repo, manifest) = try workingCopy()
         var first: [CommitInfo] = []

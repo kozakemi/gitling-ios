@@ -143,14 +143,9 @@ struct RepoListView: View {
         } message: {
             Text(store.alert ?? "")
         }
-        .overlay(alignment: .bottom) {
-            if store.isBusy && !store.statusLine.isEmpty {
-                Text(store.statusLine)
-                    .font(.footnote)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(.bottom, 12)
+        .overlay {
+            if store.isBusy, let progress = store.operationProgress {
+                OperationProgressOverlay(state: progress)
             }
         }
     }

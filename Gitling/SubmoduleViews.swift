@@ -59,7 +59,7 @@ struct SubmodulePage: View {
             }
             if !authorities.isEmpty {
                 Section("Submodule Credentials") {
-                    Text("Each remote uses its own matching account. For SSH remotes on another host, select a key here. Newly discovered nested remotes use matching saved accounts; retry to choose their SSH keys if needed.")
+                    Text("Each remote uses its own matching account. A saved sign-in for this repository is reused only when the submodule uses the same scheme, host, and port. For SSH remotes on another host, select a key here. Newly discovered nested remotes use matching saved accounts; retry to choose their SSH keys if needed.")
                         .foregroundStyle(.secondary)
                     ForEach(authorities, id: \.self) { authority in
                         VStack(alignment: .leading, spacing: 8) {
@@ -109,6 +109,11 @@ struct SubmodulePage: View {
             }
         }
         .navigationTitle("Submodules")
+        .overlay {
+            if store.isBusy, let progress = store.operationProgress {
+                OperationProgressOverlay(state: progress)
+            }
+        }
         .toolbar { if store.isBusy { ProgressView() } }
         .task(id: "\(store.revision)-\(recursive)") { await load() }
         .confirmationDialog(confirm == .initialize ? String(localized: "Initialize Submodules?") : String(localized: "Update Submodules?"), isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }), titleVisibility: .visible, presenting: confirm) { action in
@@ -137,6 +142,17 @@ struct SubmodulePage: View {
             guard !Task.isCancelled else { return }
             snapshot = value; error = nil
             if let saved = value.checkpoint { self.recursive = saved.recursive; initializeMissing = saved.initializeMissing }
+            if let origin = try? GitClient.originURL(url) {
+                let split = GitRemoteURL.splitUserInfo(origin)
+                if let authority = SubmoduleAuth.authority(split.url),
+                   let username = split.username, !username.isEmpty,
+                   overrides[authority]?.secret.isEmpty != false,
+                   (overrides[authority]?.username ?? "").isEmpty {
+                    var prefilled = overrides[authority] ?? .init()
+                    prefilled.username = username
+                    overrides[authority] = prefilled
+                }
+            }
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
     }
 }

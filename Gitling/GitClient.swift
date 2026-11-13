@@ -227,8 +227,11 @@ enum GitClient {
         secret: String,
         sshKey: SSHKeyMaterial? = nil,
         lfsAuth: LFSAuth? = nil,
-        worktreeBookmark: Data? = nil
+        worktreeBookmark: Data? = nil,
+        progress: GitProgressHandler? = nil
     ) throws {
+        let reporter = GitProgressReporter(handler: progress)
+        reporter.report(.preparing)
         let destination = try destinationURL(name: name, root: root)
         try writing(destination) {
             var succeeded = false
@@ -238,7 +241,7 @@ enum GitClient {
                 }
             }
             try locked {
-            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
+            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey, progress: reporter)
             defer { withExtendedLifetime(box) {} }
             var options = git_clone_options()
             try check(
@@ -246,6 +249,8 @@ enum GitClient {
                 String(localized: "Could not clone")
             )
             applyTransport(&options.fetch_opts.callbacks, box: box)
+            applyCheckoutProgress(&options.checkout_opts, box: box)
+            reporter.report(.connecting)
             var repo: OpaquePointer?
             let code = git_clone(&repo, url, destination.path, &options)
             try check(code, String(localized: "Could not clone"))
@@ -258,6 +263,7 @@ enum GitClient {
             }
             }
             succeeded = true
+            reporter.report(.largeFiles)
             try smudgeLFS(at: destination, remoteURL: url, auth: lfsAuth)
         }
     }
@@ -548,15 +554,18 @@ enum GitClient {
         sshKey: SSHKeyMaterial? = nil,
         lfsAuth: LFSAuth? = nil,
         name: String,
-        email: String
+        email: String,
+        progress: GitProgressHandler? = nil
     ) throws {
+        let reporter = GitProgressReporter(handler: progress)
+        reporter.report(.preparing)
         try writing(repoURL) {
         try locked {
             let opened = try open(repoURL)
             defer { withExtendedLifetime(opened) {} }
             let repo = opened.repo
             try requireCleanOperationStart(repo)
-            let upstream = try fetchUpstream(repo, username: username, secret: secret, sshKey: sshKey)
+            let upstream = try fetchUpstream(repo, username: username, secret: secret, sshKey: sshKey, progress: reporter)
             defer { git_reference_free(upstream) }
             var annotated: OpaquePointer?
             try check(
@@ -564,21 +573,23 @@ enum GitClient {
                 String(localized: "Could not pull")
             )
             defer { git_annotated_commit_free(annotated) }
+            reporter.report(.merging)
             let analysis = try mergeAnalysis(repo, annotated: annotated)
             if analysis.upToDate { return }
             if analysis.fastForward {
-                try fastForward(repo, to: upstream)
+                try fastForward(repo, to: upstream, progress: reporter)
                 return
             }
             if analysis.normal {
                 guard !name.isEmpty, !email.isEmpty else {
                     throw GitFailure.message(String(localized: "Set your name and email in Settings before committing."))
                 }
-                try merge(repo, annotated: annotated, name: name, email: email)
+                try merge(repo, annotated: annotated, name: name, email: email, progress: reporter)
                 return
             }
             throw GitFailure.message(String(localized: "Could not pull"))
         }
+        reporter.report(.largeFiles)
         try smudgeLFS(at: repoURL, remoteURL: try transportURL(at: repoURL), auth: lfsAuth)
         }
     }
@@ -589,8 +600,11 @@ enum GitClient {
         secret: String,
         sshKey: SSHKeyMaterial? = nil,
         lfsAuth: LFSAuth? = nil,
-        remoteName: String? = nil
+        remoteName: String? = nil,
+        progress: GitProgressHandler? = nil
     ) throws {
+        let reporter = GitProgressReporter(handler: progress)
+        reporter.report(.preparing)
         try writing(repoURL) {
         try locked {
             let handle = try open(repoURL)
@@ -611,12 +625,13 @@ enum GitClient {
             }
             defer { git_remote_free(remote) }
 
-            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
+            let box = CredentialBox(username: username, secret: secret, sshKey: sshKey, progress: reporter)
             defer { withExtendedLifetime(box) {} }
             var options = git_push_options()
             try check(git_push_options_init(&options, UInt32(GIT_PUSH_OPTIONS_VERSION)), String(localized: "Could not push"))
             applyTransport(&options.callbacks, box: box)
 
+            reporter.report(.connecting)
             let spec = "refs/heads/\(branch):refs/heads/\(target)"
             try withRefspec(spec) { refspecs in
                 try check(git_remote_push(remote, refspecs, &options), String(localized: "Could not push"))
@@ -638,13 +653,16 @@ enum GitClient {
         secret: String,
         sshKey: SSHKeyMaterial? = nil,
         lfsAuth: LFSAuth? = nil,
-        remoteName: String? = nil
+        remoteName: String? = nil,
+        progress: GitProgressHandler? = nil
     ) throws {
+        let reporter = GitProgressReporter(handler: progress)
+        reporter.report(.preparing)
         try writing(repoURL) {
             try locked {
                 let opened = try open(repoURL)
                 defer { withExtendedLifetime(opened) {} }
-                try fetchOrigin(opened.repo, username: username, secret: secret, sshKey: sshKey, remoteName: remoteName)
+                try fetchOrigin(opened.repo, username: username, secret: secret, sshKey: sshKey, remoteName: remoteName, progress: reporter)
             }
         }
     }
@@ -1339,7 +1357,8 @@ enum GitClient {
         username: String,
         secret: String,
         sshKey: SSHKeyMaterial?,
-        remoteName: String? = nil
+        remoteName: String? = nil,
+        progress: GitProgressReporter = .init(handler: nil)
     ) throws {
         let destination = try syncRemote(repo, requested: remoteName)
         var remote: OpaquePointer?
@@ -1347,11 +1366,12 @@ enum GitClient {
             throw GitFailure.message(String(localized: "This repository has no origin remote."))
         }
         defer { git_remote_free(remote) }
-        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
+        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey, progress: progress)
             defer { withExtendedLifetime(box) {} }
         var fetch = git_fetch_options()
         try check(git_fetch_options_init(&fetch, UInt32(GIT_FETCH_OPTIONS_VERSION)), String(localized: "Could not pull"))
         applyTransport(&fetch.callbacks, box: box)
+        progress.report(.connecting)
         try check(git_remote_fetch(remote, nil, &fetch, "fetch"), String(localized: "Could not pull"))
     }
 
@@ -1680,7 +1700,8 @@ enum GitClient {
         _ repo: OpaquePointer,
         username: String,
         secret: String,
-        sshKey: SSHKeyMaterial?
+        sshKey: SSHKeyMaterial?,
+        progress: GitProgressReporter = .init(handler: nil)
     ) throws -> OpaquePointer? {
         guard let configured = upstreamUnlocked(repo), configured.remote != "." else {
             throw GitFailure.message(String(localized: "This branch has no upstream. Push it first."))
@@ -1690,11 +1711,12 @@ enum GitClient {
             throw GitFailure.message(String(localized: "This repository has no origin remote."))
         }
         defer { git_remote_free(remote) }
-        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey)
+        let box = CredentialBox(username: username, secret: secret, sshKey: sshKey, progress: progress)
             defer { withExtendedLifetime(box) {} }
         var fetch = git_fetch_options()
         try check(git_fetch_options_init(&fetch, UInt32(GIT_FETCH_OPTIONS_VERSION)), String(localized: "Could not pull"))
         applyTransport(&fetch.callbacks, box: box)
+        progress.report(.connecting)
         try check(git_remote_fetch(remote, nil, &fetch, "pull"), String(localized: "Could not pull"))
 
         var head: OpaquePointer?
@@ -1708,7 +1730,7 @@ enum GitClient {
         return upstream
     }
 
-    private static func fastForward(_ repo: OpaquePointer, to upstream: OpaquePointer?) throws {
+    private static func fastForward(_ repo: OpaquePointer, to upstream: OpaquePointer?, progress: GitProgressReporter = .init(handler: nil)) throws {
         var resolved: OpaquePointer?
         try check(git_reference_resolve(&resolved, upstream), String(localized: "Could not pull"))
         defer { git_reference_free(resolved) }
@@ -1725,6 +1747,10 @@ enum GitClient {
             String(localized: "Could not pull")
         )
         checkout.checkout_strategy = GIT_CHECKOUT_SAFE.rawValue
+        let progressBox = GitTransportProgressBox(progress: progress)
+        defer { withExtendedLifetime(progressBox) {} }
+        applyCheckoutProgress(&checkout, box: progressBox)
+        progress.report(.checkingOut)
         try check(git_checkout_tree(repo, object, &checkout), String(localized: "Could not pull"))
         var head: OpaquePointer?
         try check(git_repository_head(&head, repo), String(localized: "Could not pull"))
@@ -1741,7 +1767,8 @@ enum GitClient {
         _ repo: OpaquePointer,
         annotated: OpaquePointer?,
         name: String,
-        email: String
+        email: String,
+        progress: GitProgressReporter = .init(handler: nil)
     ) throws {
         try beginOperation(repo, kind: .merge, target: oidString(git_annotated_commit_id(annotated)))
         var annotated = annotated
@@ -1750,6 +1777,10 @@ enum GitClient {
         var checkout = git_checkout_options()
         try check(git_checkout_options_init(&checkout, UInt32(GIT_CHECKOUT_OPTIONS_VERSION)), String(localized: "Could not pull"))
         checkout.checkout_strategy = GIT_CHECKOUT_SAFE.rawValue | GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue
+        let progressBox = GitTransportProgressBox(progress: progress)
+        defer { withExtendedLifetime(progressBox) {} }
+        applyCheckoutProgress(&checkout, box: progressBox)
+        progress.report(.merging)
         let code = git_merge(repo, &annotated, 1, &mergeOptions, &checkout)
         if indexHasConflicts(repo) { return }
         try check(code, String(localized: "Could not pull"))
@@ -1806,6 +1837,7 @@ enum GitClient {
     }
 
     private static func applyTransport(_ callbacks: inout git_remote_callbacks, box: CredentialBox) {
+        applyTransferProgress(&callbacks, reporter: box.progress)
         callbacks.credentials = acquireCredentials
         callbacks.certificate_check = checkServerCertificate
         callbacks.push_update_reference = { _, status, payload in
@@ -1815,6 +1847,46 @@ enum GitClient {
             return 0
         }
         callbacks.payload = Unmanaged.passUnretained(box).toOpaque()
+    }
+
+    private static func applyTransferProgress(_ callbacks: inout git_remote_callbacks, reporter: GitProgressReporter) {
+        guard reporter.handler != nil else { return }
+        callbacks.transfer_progress = { stats, payload in
+            guard let stats, let payload else { return 0 }
+            let progress = Unmanaged<GitTransportProgressBox>.fromOpaque(payload).takeUnretainedValue().progress
+            let s = stats.pointee
+            if s.received_objects == s.total_objects, s.total_deltas > 0 {
+                progress.report(.resolving, completed: Int(s.indexed_deltas), total: Int(s.total_deltas), bytes: s.received_bytes)
+            } else if s.received_objects == s.total_objects, s.indexed_objects < s.total_objects {
+                progress.report(.indexing, completed: Int(s.indexed_objects), total: Int(s.total_objects), bytes: s.received_bytes)
+            } else {
+                progress.report(.receiving, completed: Int(s.received_objects), total: Int(s.total_objects), bytes: s.received_bytes)
+            }
+            return 0
+        }
+        callbacks.pack_progress = { _, current, total, payload in
+            guard let payload else { return 0 }
+            Unmanaged<GitTransportProgressBox>.fromOpaque(payload).takeUnretainedValue().progress
+                .report(.packing, completed: Int(current), total: Int(total))
+            return 0
+        }
+        callbacks.push_transfer_progress = { current, total, bytes, payload in
+            guard let payload else { return 0 }
+            Unmanaged<GitTransportProgressBox>.fromOpaque(payload).takeUnretainedValue().progress
+                .report(total > 0 && current >= total ? .waitingForRemote : .sending,
+                        completed: Int(current), total: current >= total ? 0 : Int(total), bytes: bytes)
+            return 0
+        }
+    }
+
+    private static func applyCheckoutProgress(_ options: inout git_checkout_options, box: GitTransportProgressBox) {
+        guard box.progress.handler != nil else { return }
+        options.progress_payload = Unmanaged.passUnretained(box).toOpaque()
+        options.progress_cb = { _, completed, total, payload in
+            guard let payload else { return }
+            Unmanaged<GitTransportProgressBox>.fromOpaque(payload).takeUnretainedValue().progress
+                .report(.checkingOut, completed: completed, total: total)
+        }
     }
 
     private static func withRefspec(_ spec: String, _ body: (UnsafePointer<git_strarray>) throws -> Void) throws {
@@ -2138,22 +2210,29 @@ extension GitClient {
     }
 }
 
-private final class CredentialBox {
+private class GitTransportProgressBox {
+    let progress: GitProgressReporter
+    init(progress: GitProgressReporter) { self.progress = progress }
+}
+
+private final class CredentialBox: GitTransportProgressBox {
     let username: String
     let secret: String
     let sshKey: SSHKeyMaterial?
     var pushError: String?
 
-    init(username: String, secret: String, sshKey: SSHKeyMaterial? = nil) {
+    init(username: String, secret: String, sshKey: SSHKeyMaterial? = nil, progress: GitProgressReporter = .init(handler: nil)) {
         self.username = username
         self.secret = secret
         self.sshKey = sshKey
+        super.init(progress: progress)
     }
 }
 
 private let acquireCredentials: git_credential_acquire_cb = { credential, _, usernameFromURL, allowedTypes, payload in
     guard let credential, let payload else { return -1 }
     let box = Unmanaged<CredentialBox>.fromOpaque(payload).takeUnretainedValue()
+    box.progress.report(.authenticating)
     let usernameFromURL = usernameFromURL.map { String(cString: $0) } ?? ""
     let user = box.username.isEmpty ? usernameFromURL : box.username
 
@@ -2764,15 +2843,20 @@ extension GitClient {
 
 // MARK: - Submodules (one durable checkpoint per superproject)
 private final class SubmoduleNames { var names: [String] = [] }
-private final class SubmoduleTransportBox {
+private final class SubmoduleTransportBox: GitTransportProgressBox {
     let expected: String
     let auth: SubmoduleAuth
     var attempts = 0
-    init(expected: String, auth: SubmoduleAuth) { self.expected = expected; self.auth = auth }
+    var authenticationRejected = false
+    init(expected: String, auth: SubmoduleAuth, progress: GitProgressReporter) {
+        self.expected = expected; self.auth = auth
+        super.init(progress: progress)
+    }
 }
 
 extension GitClient {
     private static var submoduleFailure: String { String(localized: "Could not update submodules. Completed work and local Git data were kept. Retry after fixing the reported submodule.") }
+    private static var submoduleAuthentication: String { String(localized: "The submodule remote rejected the sign-in. Enter the username and password for that server, then retry. Completed work and local Git data were kept.") }
     private static var changedSubmodules: GitFailure { .message(String(localized: "The parent index, submodule configuration, or working folder changed. End this update and review the new state before starting again.")) }
     private static var dirtySubmodules: GitFailure { .message(String(localized: "A submodule has local changes or an unfinished operation. Commit or stash them before updating. No force checkout is performed.")) }
     private static func submoduleJournalURL(_ repo: OpaquePointer) -> URL { gitDirectory(repo).appendingPathComponent("gitling-submodules.json") }
@@ -2956,7 +3040,10 @@ extension GitClient {
     }
 
     static func updateSubmodules(at repoURL: URL, action: SubmoduleAction = .update, recursive: Bool = false,
-                                 initializeMissing: Bool = true, resume: Bool = false, auth: SubmoduleAuth = .init()) throws {
+                                 initializeMissing: Bool = true, resume: Bool = false, auth: SubmoduleAuth = .init(),
+                                 progress: GitProgressHandler? = nil) throws {
+        let reporter = GitProgressReporter(handler: progress)
+        reporter.report(.checkingSubmodules)
         try writing(repoURL) {
             let opened = try locked { try openForFileRestore(repoURL) }
             defer { withExtendedLifetime(opened) {} }
@@ -2983,13 +3070,13 @@ extension GitClient {
             }
             try saveSubmoduleCheckpoint(checkpoint, repo: repo)
             var visited = Set<String>()
-            try runSubmodules(repo, journalRepo: repo, prefix: "", depth: 0, visited: &visited, checkpoint: &checkpoint, auth: auth)
+            try runSubmodules(repo, journalRepo: repo, prefix: "", depth: 0, visited: &visited, checkpoint: &checkpoint, auth: auth, progress: reporter)
             try FileManager.default.removeItem(at: submoduleJournalURL(repo))
         }
     }
 
     private static func runSubmodules(_ repo: OpaquePointer, journalRepo: OpaquePointer, prefix: String, depth: Int,
-                                      visited: inout Set<String>, checkpoint: inout SubmoduleCheckpoint, auth: SubmoduleAuth) throws {
+                                      visited: inout Set<String>, checkpoint: inout SubmoduleCheckpoint, auth: SubmoduleAuth, progress: GitProgressReporter) throws {
         guard depth < 32, visited.count < 4096 else { throw WorkingTreeError.outside }
         try validateModulesFile(repo)
         guard visited.insert(gitDirectory(repo).resolvingSymlinksInPath().path).inserted else { throw WorkingTreeError.outside }
@@ -2997,6 +3084,8 @@ extension GitClient {
             try withSubmodule(repo, name: name) { submodule in
                 guard let raw = git_submodule_path(submodule) else { throw WorkingTreeError.notFound }
                 let relative = String(cString: raw), full = prefix + relative
+                let reporter = progress.scoped(to: full)
+                reporter.report(.configuringSubmodule)
                 let path = try safeSubmodulePath(repo, path: relative)
                 let target = git_submodule_index_id(submodule).map { format($0.pointee) }
                 guard let target else { throw changedSubmodules }
@@ -3038,25 +3127,38 @@ extension GitClient {
                         try check(git_submodule_update_options_init(&options, UInt32(GIT_SUBMODULE_UPDATE_OPTIONS_VERSION)), submoduleFailure)
                         options.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE.rawValue | GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue
                         let expected = existing.flatMap { originURLUnlocked($0) } ?? url
-                        let box = SubmoduleTransportBox(expected: expected, auth: auth)
+                        let box = SubmoduleTransportBox(expected: expected, auth: auth, progress: reporter)
                         options.fetch_opts.callbacks.payload = Unmanaged.passUnretained(box).toOpaque()
                         options.fetch_opts.callbacks.certificate_check = checkServerCertificate
+                        applyTransferProgress(&options.fetch_opts.callbacks, reporter: reporter)
+                        applyCheckoutProgress(&options.checkout_opts, box: box)
                         options.fetch_opts.callbacks.credentials = { output, actual, user, allowed, payload in
                             guard let actual, let payload else { return -1 }
                             let box = Unmanaged<SubmoduleTransportBox>.fromOpaque(payload).takeUnretainedValue()
+                            box.progress.report(.authenticating)
                             box.attempts += 1
-                            guard box.attempts <= 4 else { return -1 }
-                            guard let value = box.auth.credentials(for: String(cString: actual), expected: box.expected) else { return -1 }
+                            guard box.attempts <= 4,
+                                  let value = box.auth.credentials(for: String(cString: actual), expected: box.expected) else {
+                                box.authenticationRejected = true
+                                return GIT_EAUTH.rawValue
+                            }
                             let credentials = CredentialBox(username: value.username, secret: value.secret, sshKey: value.sshKey)
-                            return withExtendedLifetime(credentials) {
+                            let result = withExtendedLifetime(credentials) {
                                 acquireCredentials(output, actual, user, allowed, Unmanaged.passUnretained(credentials).toOpaque())
                             }
+                            if result < 0 {
+                                box.authenticationRejected = true
+                                return GIT_EAUTH.rawValue
+                            }
+                            return result
                         }
+                        reporter.report(.connecting)
                         let code = git_submodule_update(submodule, checkpoint.initializeMissing ? 1 : 0, &options)
                         withExtendedLifetime(box) {}
                         guard code == 0 else {
                             // Do not include transport diagnostics: a remote URL can contain secrets.
-                            throw GitFailure.message(full + ": " + submoduleFailure)
+                            let message = code == GIT_EAUTH.rawValue || box.authenticationRejected ? submoduleAuthentication : submoduleFailure
+                            throw GitFailure.message(full + ": " + message)
                         }
                     }
                     checkpoint.completed.append(full)
@@ -3066,7 +3168,7 @@ extension GitClient {
                     defer { git_repository_free(child) }
                     if checkpoint.action == .update, moduleHead(child) != target { throw changedSubmodules }
                     try runSubmodules(child, journalRepo: journalRepo, prefix: full + "/", depth: depth + 1,
-                                      visited: &visited, checkpoint: &checkpoint, auth: auth)
+                                      visited: &visited, checkpoint: &checkpoint, auth: auth, progress: progress)
                 }
             }
         }
@@ -3938,5 +4040,1279 @@ extension GitClient {
             }
             return FileHistoryEntry(commit: info, path: path, kind: .modified, previousPath: nil)
         }
+    }
+}
+
+// Appended to the end of Gitling/GitClient.swift
+// (after the final closing brace of the existing file, line 3942).
+
+// MARK: - Fixed commit comparison endpoints
+
+extension GitClient {
+    /// Resolve a user-entered commit reference to a fixed full commit OID.
+    ///
+    /// Accepted inputs, in order:
+    /// 1. `HEAD`.
+    /// 2. A full reference under `refs/heads/`, `refs/remotes/`, or `refs/tags/`.
+    /// 3. Exactly one short branch, remote-branch, or tag name in those namespaces.
+    /// 4. A unique hexadecimal object prefix with at least 7 characters.
+    ///
+    /// Short names are rejected when more than one namespace matches; pass a full
+    /// reference to choose one. Annotated tags are peeled with a 32-object ceiling,
+    /// and each tag or commit object is rejected if its header exceeds 1 MiB.
+    ///
+    /// This uses an independent `OpenRepo(path:access:nil)` handle and never reads or
+    /// writes the worktree, index, refs, or remote state. libgit2 object-header,
+    /// tag-lookup, and commit-lookup calls are synchronous and not individually
+    /// interruptible; cancellation is checked before and between them.
+    static func resolveComparisonCommit(at repoURL: URL, input raw: String,
+                                        cancellation: SearchCancellation = .init()) throws -> ComparisonEndpoint {
+        try cancellation.check()
+        let input = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else {
+            throw GitFailure.message(String(localized: "Enter a commit, branch, or tag."))
+        }
+        guard !input.contains("\0") else {
+            throw GitFailure.message(String(localized: "That is not a valid commit reference."))
+        }
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        defer { withExtendedLifetime(opened) {} }
+        let repo = opened.repo
+
+        // Refs take precedence over OID prefixes: a legal branch or tag name may be all hex.
+        if input == "HEAD" {
+            try cancellation.check()
+            return try comparisonResolveReference(repo, reference: "HEAD", input: input,
+                                                  source: .head, cancellation: cancellation)
+        }
+        if input.hasPrefix("refs/") {
+            guard input.hasPrefix("refs/heads/")
+                || input.hasPrefix("refs/remotes/")
+                || input.hasPrefix("refs/tags/") else {
+                throw GitFailure.message(String(localized: "Use a branch, remote branch, or tag reference."))
+            }
+            return try comparisonResolveReference(repo, reference: input, input: input,
+                                                  source: comparisonSource(for: input),
+                                                  cancellation: cancellation)
+        }
+        if let endpoint = try comparisonResolveShortName(repo, name: input, input: input,
+                                                          cancellation: cancellation) {
+            return endpoint
+        }
+        return try comparisonResolveOIDPrefix(repo, input: input, cancellation: cancellation)
+    }
+
+    /// Local branches, remote-tracking branches, tags, and HEAD as endpoint choices.
+    ///
+    /// The list comes from the repository database only, so it works without a worktree
+    /// bookmark. Annotated tags report their direct tag-object target; resolving an
+    /// endpoint peels that tag. No network or remote lookup is performed, and the whole
+    /// reference list is bounded only by the repository's ref count and cancellation.
+    static func comparisonReferences(at repoURL: URL,
+                                     cancellation: SearchCancellation = .init()) throws -> [ComparisonReference] {
+        try cancellation.check()
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        defer { withExtendedLifetime(opened) {} }
+        let repo = opened.repo
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read references."))
+        guard let database else {
+            throw GitFailure.message(String(localized: "Could not read references."))
+        }
+        defer { git_odb_free(database) }
+
+        let current = comparisonCurrentReferenceName(repo)
+        var result: [ComparisonReference] = []
+
+        var head: OpaquePointer?
+        try check(git_reference_lookup(&head, repo, "HEAD"), String(localized: "Could not read references."))
+        guard let head else { throw GitFailure.message(String(localized: "Could not read references.")) }
+        defer { git_reference_free(head) }
+        result.append(ComparisonReference(
+            name: "HEAD",
+            reference: "HEAD",
+            kind: .head,
+            targetOID: comparisonReferenceOID(head).map { format($0) },
+            annotated: false,
+            isCurrent: false
+        ))
+
+        let list = try comparisonReferenceList(repo, database: database, current: current,
+                                               cancellation: cancellation)
+        result.append(contentsOf: list)
+        return result
+    }
+}
+
+// MARK: - Private comparison helpers
+
+private extension GitClient {
+    static func comparisonSource(for reference: String) -> ComparisonEndpoint.Source {
+        if reference.hasPrefix("refs/heads/") { return .localBranch }
+        if reference.hasPrefix("refs/remotes/") { return .remoteBranch }
+        if reference.hasPrefix("refs/tags/") { return .tag }
+        return .head
+    }
+
+    static func comparisonResolveReference(_ repo: OpaquePointer,
+                                           reference: String,
+                                           input: String,
+                                           source: ComparisonEndpoint.Source,
+                                           cancellation: SearchCancellation) throws -> ComparisonEndpoint {
+        try cancellation.check()
+        var ref: OpaquePointer?
+        guard git_reference_lookup(&ref, repo, reference) == 0, let ref else {
+            throw GitFailure.message(String(localized: "That branch or tag does not exist."))
+        }
+        defer { git_reference_free(ref) }
+
+        var resolved: OpaquePointer?
+        defer { if let resolved { git_reference_free(resolved) } }
+        let targetRef: OpaquePointer
+        if git_reference_type(ref) == GIT_REFERENCE_SYMBOLIC {
+            try cancellation.check()
+            guard git_reference_resolve(&resolved, ref) == 0, let resolved else {
+                throw GitFailure.message(String(localized: "That reference does not point to a commit."))
+            }
+            targetRef = resolved
+        } else {
+            targetRef = ref
+        }
+        guard let target = git_reference_target(targetRef) else {
+            throw GitFailure.message(String(localized: "That reference does not point to a commit."))
+        }
+        return try comparisonPeelCommit(repo, oid: target.pointee, input: input, source: source,
+                                        cancellation: cancellation)
+    }
+
+    static func comparisonResolveShortName(_ repo: OpaquePointer,
+                                           name: String,
+                                           input: String,
+                                           cancellation: SearchCancellation) throws -> ComparisonEndpoint? {
+        let candidates: [(reference: String, source: ComparisonEndpoint.Source)] = [
+            ("refs/heads/" + name, .localBranch),
+            ("refs/remotes/" + name, .remoteBranch),
+            ("refs/tags/" + name, .tag),
+        ]
+        var matches: [(reference: String, source: ComparisonEndpoint.Source)] = []
+        for candidate in candidates {
+            try cancellation.check()
+            var ref: OpaquePointer?
+            if git_reference_lookup(&ref, repo, candidate.reference) == 0, let ref {
+                git_reference_free(ref)
+                matches.append(candidate)
+            }
+        }
+        guard !matches.isEmpty else { return nil }
+        guard matches.count == 1, let match = matches.first else {
+            let names = matches.map { $0.reference }.joined(separator: ", ")
+            throw GitFailure.message(String(
+                format: String(localized: "That name is ambiguous. Use a full reference: %@"),
+                names
+            ))
+        }
+        return try comparisonResolveReference(repo, reference: match.reference, input: input,
+                                              source: match.source, cancellation: cancellation)
+    }
+
+    static func comparisonResolveOIDPrefix(_ repo: OpaquePointer,
+                                           input: String,
+                                           cancellation: SearchCancellation) throws -> ComparisonEndpoint {
+        let hex = input.lowercased()
+        guard hex.count >= 7, hex.count <= 40,
+              hex.utf8.allSatisfy({ comparisonIsHexDigit($0) }) else {
+            throw GitFailure.message(String(
+                localized: "No branch or tag matches that name, and it is not an OID prefix of at least 7 hexadecimal characters."
+            ))
+        }
+        try cancellation.check()
+
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read the Git object database."))
+        guard let database else {
+            throw GitFailure.message(String(localized: "Could not read the Git object database."))
+        }
+        defer { git_odb_free(database) }
+
+        var oid = git_oid()
+        if hex.count == 40 {
+            guard hex.withCString({ git_oid_fromstr(&oid, $0) }) == 0 else {
+                throw GitFailure.message(String(localized: "That is not a valid commit OID."))
+            }
+        } else {
+            var prefix = git_oid()
+            guard hex.withCString({ git_oid_fromstrn(&prefix, $0, hex.count) }) == 0 else {
+                throw GitFailure.message(String(localized: "That is not a valid commit OID."))
+            }
+            var full = git_oid()
+            let code = git_odb_exists_prefix(&full, database, &prefix, hex.count)
+            if matches(code, GIT_EAMBIGUOUS) {
+                throw GitFailure.message(String(localized: "That OID prefix matches more than one object. Enter more characters."))
+            }
+            if matches(code, GIT_ENOTFOUND) {
+                throw GitFailure.message(String(localized: "No object in this repository matches that OID prefix."))
+            }
+            try check(code, String(localized: "Could not read that object."))
+            oid = full
+        }
+        return try comparisonPeelCommit(repo, oid: oid, input: input, source: .oidPrefix,
+                                        cancellation: cancellation)
+    }
+
+    /// Follow bounded annotated-tag chains and load only a final commit.
+    ///
+    /// The object header is read before every load. A present tree/blob is rejected as a
+    /// non-commit; a missing object is reported separately. The 1 MiB metadata ceiling
+    /// applies to each tag object and to the final commit object.
+    static func comparisonPeelCommit(_ repo: OpaquePointer,
+                                     oid initial: git_oid,
+                                     input: String,
+                                     source: ComparisonEndpoint.Source,
+                                     cancellation: SearchCancellation) throws -> ComparisonEndpoint {
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read the Git object database."))
+        guard let database else {
+            throw GitFailure.message(String(localized: "Could not read the Git object database."))
+        }
+        defer { git_odb_free(database) }
+
+        let limits = ComparisonLimits.standard
+        var oid = initial
+        for _ in 0..<limits.maximumTagPeelDepth {
+            try cancellation.check()
+
+            var type = GIT_OBJECT_INVALID
+            var size = 0
+            let header = git_odb_read_header(&size, &type, database, &oid)
+            if matches(header, GIT_ENOTFOUND) {
+                throw GitFailure.message(String(localized: "The selected object is missing from this repository."))
+            }
+            try check(header, String(localized: "Could not read that object."))
+
+            if type == GIT_OBJECT_TAG {
+                guard size <= limits.maximumMetadataBytes else {
+                    throw GitFailure.message(String(localized: "The tag metadata is too large to read safely."))
+                }
+                var tag: OpaquePointer?
+                try check(git_tag_lookup(&tag, repo, &oid), String(localized: "Could not read that tag."))
+                guard let tag else { throw GitFailure.message(String(localized: "Could not read that tag.")) }
+                defer { git_tag_free(tag) }
+                guard let target = git_tag_target_id(tag) else {
+                    throw GitFailure.message(String(localized: "Could not read that tag's target."))
+                }
+                oid = target.pointee
+                continue
+            }
+
+            guard type == GIT_OBJECT_COMMIT else {
+                throw GitFailure.message(String(localized: "That reference does not point to a commit."))
+            }
+            guard size <= limits.maximumMetadataBytes else {
+                throw GitFailure.message(String(localized: "The commit metadata is too large to read safely."))
+            }
+
+            var commit: OpaquePointer?
+            try check(git_commit_lookup(&commit, repo, &oid), String(localized: "Could not read that commit."))
+            guard let commit else { throw GitFailure.message(String(localized: "Could not read that commit.")) }
+            defer { git_commit_free(commit) }
+
+            let author = git_commit_author(commit)
+            return ComparisonEndpoint(
+                oid: format(oid),
+                input: input,
+                source: source,
+                summary: git_commit_summary(commit).map { String(String(cString: $0).prefix(8_000)) } ?? "",
+                author: author.map { String(cString: $0.pointee.name) } ?? "",
+                date: Date(timeIntervalSince1970: Double(git_commit_time(commit)))
+            )
+        }
+        throw GitFailure.message(String(localized: "The tag chain is too deep to resolve safely."))
+    }
+
+    static func comparisonReferenceList(_ repo: OpaquePointer,
+                                        database: OpaquePointer,
+                                        current: String?,
+                                        cancellation: SearchCancellation) throws -> [ComparisonReference] {
+        var iterator: OpaquePointer?
+        try check(git_reference_iterator_new(&iterator, repo), String(localized: "Could not read references."))
+        guard let iterator else { throw GitFailure.message(String(localized: "Could not read references.")) }
+        defer { git_reference_iterator_free(iterator) }
+
+        var local: [ComparisonReference] = []
+        var remote: [ComparisonReference] = []
+        var tags: [ComparisonReference] = []
+
+        while true {
+            try cancellation.check()
+            var reference: OpaquePointer?
+            let code = git_reference_next(&reference, iterator)
+            if matches(code, GIT_ITEROVER) { break }
+            try check(code, String(localized: "Could not read references."))
+            guard let reference else { continue }
+            defer { git_reference_free(reference) }
+            guard let raw = git_reference_name(reference) else { continue }
+            let full = String(cString: raw)
+
+            let kind: ComparisonReference.Kind
+            let name: String
+            if full.hasPrefix("refs/heads/") {
+                kind = .localBranch
+                name = String(full.dropFirst("refs/heads/".count))
+            } else if full.hasPrefix("refs/remotes/") {
+                kind = .remoteBranch
+                name = String(full.dropFirst("refs/remotes/".count))
+            } else if full.hasPrefix("refs/tags/") {
+                kind = .tag
+                name = String(full.dropFirst("refs/tags/".count))
+            } else {
+                continue
+            }
+
+            let target = comparisonReferenceOID(reference)
+            var annotated = false
+            if kind == .tag, let target {
+                var oid = target
+                var type = GIT_OBJECT_INVALID
+                var size = 0
+                annotated = git_odb_read_header(&size, &type, database, &oid) == 0
+                    && type == GIT_OBJECT_TAG
+            }
+
+            let item = ComparisonReference(
+                name: name,
+                reference: full,
+                kind: kind,
+                targetOID: target.map { format($0) },
+                annotated: annotated,
+                isCurrent: kind == .localBranch && full == current
+            )
+            switch kind {
+            case .localBranch: local.append(item)
+            case .remoteBranch: remote.append(item)
+            case .tag: tags.append(item)
+            case .head: break
+            }
+        }
+
+        return local.sorted(by: { comparisonReferenceOrder($0, $1) })
+            + remote.sorted(by: { comparisonReferenceOrder($0, $1) })
+            + tags.sorted(by: { comparisonReferenceOrder($0, $1) })
+    }
+
+    static func comparisonReferenceOID(_ reference: OpaquePointer) -> git_oid? {
+        if let target = git_reference_target(reference) { return target.pointee }
+        guard git_reference_type(reference) == GIT_REFERENCE_SYMBOLIC else { return nil }
+        var resolved: OpaquePointer?
+        guard git_reference_resolve(&resolved, reference) == 0, let resolved else { return nil }
+        defer { git_reference_free(resolved) }
+        return git_reference_target(resolved)?.pointee
+    }
+
+    static func comparisonCurrentReferenceName(_ repo: OpaquePointer) -> String? {
+        var head: OpaquePointer?
+        guard git_reference_lookup(&head, repo, "HEAD") == 0, let head else { return nil }
+        defer { git_reference_free(head) }
+        return git_reference_symbolic_target(head).map { String(cString: $0) }
+    }
+
+    static func comparisonReferenceOrder(_ lhs: ComparisonReference,
+                                         _ rhs: ComparisonReference) -> Bool {
+        if lhs.isCurrent != rhs.isCurrent { return lhs.isCurrent }
+        return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    }
+
+    static func comparisonIsHexDigit(_ byte: UInt8) -> Bool {
+        (48...57).contains(byte) || (65...70).contains(byte) || (97...102).contains(byte)
+    }
+}
+
+// Appended to the end of Gitling/GitClient.swift
+
+// MARK: - Commit comparison file list and single-file diff
+
+// Callback state is carried through the C payload as an unretained pointer; the
+// local strong reference plus withExtendedLifetime keeps it alive during the call.
+private final class ComparisonDiffBox {
+    let cancellation: SearchCancellation
+    let onCheckpoint: () -> Void
+    let onGeneratedDelta: () -> Void
+    let maximumFiles: Int
+    var accepted = 0
+    var truncated = false
+    var cancelled = false
+
+    init(cancellation: SearchCancellation, onCheckpoint: @escaping () -> Void, maximumFiles: Int, onGeneratedDelta: @escaping () -> Void) {
+        self.cancellation = cancellation
+        self.onCheckpoint = onCheckpoint
+        self.onGeneratedDelta = onGeneratedDelta
+        self.maximumFiles = maximumFiles
+    }
+}
+
+private final class ComparisonPatchBox {
+    let cancellation: SearchCancellation
+    let onCheckpoint: () -> Void
+    let maximumBytes: Int
+    var text = ""
+    var byteCount = 0
+    var insertions = 0
+    var deletions = 0
+    var truncated = false
+    var binary = false
+    var notUTF8 = false
+    var cancelled = false
+
+    init(cancellation: SearchCancellation, onCheckpoint: @escaping () -> Void, maximumBytes: Int) {
+        self.cancellation = cancellation
+        self.onCheckpoint = onCheckpoint
+        self.maximumBytes = maximumBytes
+    }
+
+    func checkpoint() -> Int32 {
+        onCheckpoint()
+        do {
+            try cancellation.check()
+        } catch {
+            cancelled = true
+            return -1
+        }
+        return 0
+    }
+
+    /// Appends one complete line only. The accumulated text always ends at a
+    /// complete UTF-8 line boundary when the byte budget is hit.
+    func append(_ line: String) -> Bool {
+        guard !line.isEmpty else { return true }
+        let bytes = line.utf8.count
+        guard byteCount + bytes <= maximumBytes else {
+            truncated = true
+            return false
+        }
+        text += line
+        byteCount += bytes
+        return true
+    }
+}
+
+private final class ComparisonBlob {
+    let pointer: OpaquePointer
+
+    init(_ pointer: OpaquePointer) {
+        self.pointer = pointer
+    }
+
+    deinit { git_blob_free(pointer) }
+}
+
+private struct ComparisonLoadedSide {
+    var present: Bool
+    var kind: ComparisonContentKind
+    var size: Int?
+    var blob: ComparisonBlob?
+    var symlinkTarget: String?
+    var gitlinkOID: String?
+}
+
+extension GitClient {
+    /// List changed files between two fixed commits without touching the worktree,
+    /// index, refs, or network.
+    ///
+    /// Deltas are generated with `GIT_DIFF_INCLUDE_TYPECHANGE`. The notify callback
+    /// returns non-zero after `limits.maximumFiles`, so the diff list itself never
+    /// accumulates more than the budget and `fileCount` is marked explicitly. Rename
+    /// detection runs only on a complete list and only after the added/deleted object
+    /// headers fit the candidate count, total byte, and per-blob budgets. The actual
+    /// `git_diff_find_similar` call is synchronous and not interruptible; cancellation
+    /// is checked immediately before and after it and between generated rows.
+    static func comparisonFiles(at repoURL: URL,
+                                comparison: CommitComparison,
+                                limits: ComparisonLimits = .standard,
+                                cancellation: SearchCancellation = .init(),
+                                onCheckpoint: @escaping () -> Void = {},
+                                onGeneratedDelta: @escaping () -> Void = {}) throws -> ComparisonListResult {
+        func checkpoint() throws {
+            onCheckpoint()
+            try cancellation.check()
+        }
+
+        try comparisonValidate(comparison, limits: limits)
+        try checkpoint()
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        defer { withExtendedLifetime(opened) {} }
+        let repo = opened.repo
+
+        let trees = try comparisonTrees(repo, comparison, limits: limits)
+        defer {
+            git_tree_free(trees.old)
+            git_tree_free(trees.new)
+        }
+        try checkpoint()
+
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read the Git object database."))
+        guard let database else {
+            throw GitFailure.message(String(localized: "Could not read the Git object database."))
+        }
+        defer { git_odb_free(database) }
+
+        let box = ComparisonDiffBox(cancellation: cancellation, onCheckpoint: onCheckpoint,
+                                    maximumFiles: limits.maximumFiles, onGeneratedDelta: onGeneratedDelta)
+        defer { withExtendedLifetime(box) {} }
+
+        var options = git_diff_options()
+        try check(git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION)),
+                  String(localized: "Could not compare those commits."))
+        options.flags = UInt32(GIT_DIFF_INCLUDE_TYPECHANGE.rawValue)
+            | UInt32(GIT_DIFF_SKIP_BINARY_CHECK.rawValue)
+        options.max_size = Int64(limits.maximumBlobBytes) + 1
+        options.notify_cb = { _, _, _, payload in
+            guard let payload else { return 0 }
+            let box = Unmanaged<ComparisonDiffBox>.fromOpaque(payload).takeUnretainedValue()
+            box.onGeneratedDelta()
+            box.onCheckpoint()
+            do {
+                try box.cancellation.check()
+            } catch {
+                box.cancelled = true
+                return -1
+            }
+            if box.accepted >= box.maximumFiles {
+                box.truncated = true
+                return 1 // skip this delta, keep the generated list bounded
+            }
+            box.accepted += 1
+            return 0
+        }
+        options.progress_cb = { _, _, _, payload in
+            guard let payload else { return 0 }
+            let box = Unmanaged<ComparisonDiffBox>.fromOpaque(payload).takeUnretainedValue()
+            box.onCheckpoint()
+            do {
+                try box.cancellation.check()
+            } catch {
+                box.cancelled = true
+                return -1
+            }
+            return 0
+        }
+        options.payload = Unmanaged.passUnretained(box).toOpaque()
+
+        var diff: OpaquePointer?
+        defer { git_diff_free(diff) }
+        let diffCode = git_diff_tree_to_tree(&diff, repo, trees.old, trees.new, &options)
+        if box.cancelled { throw CancellationError() }
+        try checkpoint()
+        try check(diffCode, String(localized: "Could not compare those commits."))
+        guard let diff else {
+            throw GitFailure.message(String(localized: "Could not compare those commits."))
+        }
+
+        var limitsReached: Set<ComparisonLimitReason> = []
+        var truncated = box.truncated
+        if truncated { limitsReached.insert(.fileCount) }
+
+        if !truncated, git_diff_num_deltas_of_type(diff, GIT_DELTA_ADDED) > 0,
+           git_diff_num_deltas_of_type(diff, GIT_DELTA_DELETED) > 0 {
+            let renamesReady = try comparisonRenamePreflight(diff, database: database, limits: limits) {
+                try checkpoint()
+            }
+            if renamesReady {
+                var find = git_diff_find_options()
+                try check(git_diff_find_options_init(&find, UInt32(GIT_DIFF_FIND_OPTIONS_VERSION)),
+                          String(localized: "Could not compare those commits."))
+                find.flags = UInt32(GIT_DIFF_FIND_RENAMES.rawValue) // no copy detection
+                find.rename_limit = limits.maximumRenameCandidates
+                try checkpoint()
+                // Synchronous and not interruptible once entered. The preflight above
+                // bounds candidates and content sizes, but this is a heuristic bound.
+                try check(git_diff_find_similar(diff, &find),
+                          String(localized: "Could not compare those commits."))
+                try checkpoint()
+            } else {
+                limitsReached.insert(.renameCandidates)
+            }
+        }
+
+        let count = git_diff_num_deltas(diff)
+        var files: [ComparisonFile] = []
+        files.reserveCapacity(min(count, limits.maximumFiles))
+        for index in 0..<count {
+            try checkpoint()
+            if files.count >= limits.maximumFiles {
+                truncated = true
+                limitsReached.insert(.fileCount)
+                break
+            }
+            guard let delta = git_diff_get_delta(diff, index)?.pointee else { continue }
+            files.append(try comparisonFile(base: comparison.base.oid,
+                                            target: comparison.target.oid,
+                                            delta: delta,
+                                            database: database,
+                                            limits: limits))
+        }
+
+        return ComparisonListResult(files: files, truncated: truncated,
+                                    limitsReached: limitsReached, limits: limits)
+    }
+
+    /// Load one changed file from the fixed commit pair.
+    ///
+    /// The supplied row is verified against `git_tree_entry_bypath` metadata from
+    /// both fixed trees before any blob is loaded. Object headers are read before
+    /// every blob lookup, and a blob over `limits.maximumBlobBytes` is never loaded.
+    /// Text patches use `git_diff_buffers` with the already-loaded blobs' raw bytes,
+    /// so the diff has no repository context and cannot consult attributes or the
+    /// index; line/hunk/file callbacks still stop at a complete UTF-8 line boundary
+    /// at `limits.maximumPatchBytes`. This never uses the worktree, index, refs,
+    /// checkout, or network, and never loads objects for any file except the selected row.
+    static func comparisonFileDiff(at repoURL: URL,
+                                   comparison: CommitComparison,
+                                   file selectedFile: ComparisonFile,
+                                   limits: ComparisonLimits = .standard,
+                                   cancellation: SearchCancellation = .init(),
+                                   onCheckpoint: @escaping () -> Void = {}) throws -> ComparisonFileDiff {
+        func checkpoint() throws {
+            onCheckpoint()
+            try cancellation.check()
+        }
+
+        var file = selectedFile
+        try comparisonValidate(comparison, limits: limits)
+        guard file.baseOID.caseInsensitiveCompare(comparison.base.oid) == .orderedSame,
+              file.targetOID.caseInsensitiveCompare(comparison.target.oid) == .orderedSame else {
+            throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+        }
+        try checkpoint()
+        _ = ready
+        let opened = try OpenRepo(path: repoURL.path, access: nil)
+        defer { withExtendedLifetime(opened) {} }
+        let repo = opened.repo
+
+        let trees = try comparisonTrees(repo, comparison, limits: limits)
+        defer {
+            git_tree_free(trees.old)
+            git_tree_free(trees.new)
+        }
+        try checkpoint()
+
+        let oldAbsent = file.change == .added
+        let newAbsent = file.change == .deleted
+        let oldPath: String? = oldAbsent ? nil : (file.oldPath ?? file.newPath)
+        let newPath: String? = newAbsent ? nil : (file.newPath ?? file.oldPath)
+        guard oldPath != nil || newPath != nil else {
+            throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+        }
+
+        let oldEntry: IndexedFile?
+        if let oldPath {
+            try requireFilePath(oldPath)
+            oldEntry = try indexedFile(trees.old, oldPath)
+            guard let oldEntry else {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            guard comparisonOIDMatches(file.oldOID, oldEntry.oid) else {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            if file.oldMode != oldEntry.mode {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+        } else {
+            if let counterpart = newPath, try indexedFile(trees.old, counterpart) != nil {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            oldEntry = nil
+        }
+
+        let newEntry: IndexedFile?
+        if let newPath {
+            try requireFilePath(newPath)
+            newEntry = try indexedFile(trees.new, newPath)
+            guard let newEntry else {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            guard comparisonOIDMatches(file.newOID, newEntry.oid) else {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            if file.newMode != newEntry.mode {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+        } else {
+            if let counterpart = oldPath, try indexedFile(trees.new, counterpart) != nil {
+                throw GitFailure.message(String(localized: "The selected file does not match this comparison."))
+            }
+            newEntry = nil
+        }
+
+        try comparisonValidateChange(file.change, oldEntry: oldEntry, newEntry: newEntry,
+                                     oldPath: oldPath, newPath: newPath)
+
+        if let oldEntry, let newEntry, oldPath == newPath,
+           oldEntry.mode == newEntry.mode, oidsEqual(oldEntry.oid, newEntry.oid) {
+            return ComparisonFileDiff(file: file, content: .unchanged)
+        }
+
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read the Git object database."))
+        guard let database else {
+            throw GitFailure.message(String(localized: "Could not read the Git object database."))
+        }
+        defer { git_odb_free(database) }
+
+        try checkpoint()
+        let oldSide = try comparisonLoadSide(repo, database: database, entry: oldEntry,
+                                             absent: oldEntry == nil, limit: limits.maximumBlobBytes)
+        try checkpoint()
+        let newSide = try comparisonLoadSide(repo, database: database, entry: newEntry,
+                                             absent: newEntry == nil, limit: limits.maximumBlobBytes)
+        defer { withExtendedLifetime(oldSide) {}; withExtendedLifetime(newSide) {} }
+        try checkpoint()
+
+        file.oldContent = oldSide.kind; file.newContent = newSide.kind
+        file.oldSize = oldSide.size; file.newSize = newSide.size
+        if (oldSide.present && oldSide.kind == .missing) || (newSide.present && newSide.kind == .missing) {
+            return ComparisonFileDiff(file: file, content: .missingObject)
+        }
+        if oldSide.kind == .tooLarge || newSide.kind == .tooLarge {
+            return ComparisonFileDiff(file: file, content: .tooLarge(
+                oldBytes: oldSide.size,
+                newBytes: newSide.size
+            ))
+        }
+        if oldSide.kind == .gitlink || newSide.kind == .gitlink {
+            return ComparisonFileDiff(file: file, content: .gitlink(
+                oldOID: oldSide.kind == .gitlink ? oldSide.gitlinkOID : nil,
+                newOID: newSide.kind == .gitlink ? newSide.gitlinkOID : nil
+            ))
+        }
+        if oldSide.kind == .symlink || newSide.kind == .symlink {
+            return ComparisonFileDiff(file: file, content: .symlink(
+                oldTarget: oldSide.kind == .symlink ? oldSide.symlinkTarget : nil,
+                newTarget: newSide.kind == .symlink ? newSide.symlinkTarget : nil
+            ))
+        }
+        if oldSide.kind == .directory || newSide.kind == .directory {
+            return ComparisonFileDiff(file: file, content: .directory)
+        }
+        if oldSide.kind == .binary || newSide.kind == .binary {
+            return ComparisonFileDiff(file: file, content: .binary)
+        }
+        if oldSide.kind == .notUTF8 || newSide.kind == .notUTF8 {
+            return ComparisonFileDiff(file: file, content: .notUTF8)
+        }
+        if oldSide.kind == .unknown || newSide.kind == .unknown {
+            return ComparisonFileDiff(file: file, content: .missingObject)
+        }
+
+        let header = comparisonPatchHeader(file: file, oldPath: oldPath, newPath: newPath,
+                                           oldEntry: oldEntry, newEntry: newEntry)
+        let box = ComparisonPatchBox(cancellation: cancellation, onCheckpoint: onCheckpoint,
+                                     maximumBytes: limits.maximumPatchBytes)
+        defer { withExtendedLifetime(box) {} }
+        for line in header {
+            if !box.append(line) { break }
+        }
+        if box.truncated {
+            return ComparisonFileDiff(file: file, content: .patch(ComparisonPatch(
+                text: box.text, truncated: true, insertions: 0, deletions: 0)))
+        }
+
+        var options = git_diff_options()
+        try check(git_diff_options_init(&options, UInt32(GIT_DIFF_OPTIONS_VERSION)),
+                  String(localized: "Could not compare this file."))
+        options.max_size = Int64(limits.maximumBlobBytes) + 1
+
+        let fileCallback: git_diff_file_cb = { _, _, payload in
+            guard let payload else { return 0 }
+            let box = Unmanaged<ComparisonPatchBox>.fromOpaque(payload).takeUnretainedValue()
+            return box.checkpoint()
+        }
+        let binaryCallback: git_diff_binary_cb = { _, _, payload in
+            guard let payload else { return 0 }
+            let box = Unmanaged<ComparisonPatchBox>.fromOpaque(payload).takeUnretainedValue()
+            let status = box.checkpoint()
+            if status != 0 { return status }
+            box.binary = true
+            return 1
+        }
+        let hunkCallback: git_diff_hunk_cb = { _, hunk, payload in
+            guard let payload else { return 0 }
+            let box = Unmanaged<ComparisonPatchBox>.fromOpaque(payload).takeUnretainedValue()
+            let status = box.checkpoint()
+            if status != 0 { return status }
+            guard let hunk else { return 0 }
+            let header = GitClient.comparisonHunkHeader(hunk)
+                .trimmingCharacters(in: CharacterSet.newlines)
+            guard !header.isEmpty else { return 0 }
+            return box.append(header + "\n") ? 0 : 1
+        }
+        let lineCallback: git_diff_line_cb = { _, _, line, payload in
+            guard let payload, let line else { return 0 }
+            let box = Unmanaged<ComparisonPatchBox>.fromOpaque(payload).takeUnretainedValue()
+            let status = box.checkpoint()
+            if status != 0 { return status }
+
+            let origin = line.pointee.origin
+            switch origin {
+            case 32, 43, 45, 60, 61, 62:
+                // context, addition, deletion, and the three EOF-newline markers
+                break
+            case 66:
+                box.binary = true
+                return 1
+            default:
+                // File and hunk headers are synthesized before the blob diff.
+                return 0
+            }
+
+            guard let content = line.pointee.content, line.pointee.content_len > 0 else { return 0 }
+            let data = Data(bytes: UnsafeRawPointer(content), count: Int(line.pointee.content_len))
+            guard let text = String(data: data, encoding: .utf8) else {
+                box.notUTF8 = true
+                return -1
+            }
+            let prefix = origin == 43 ? "+" : origin == 45 ? "-" : origin == 32 ? " " : ""
+            guard box.append(prefix + text) else { return 1 }
+            if origin == 43 {
+                box.insertions += 1
+            } else if origin == 45 {
+                box.deletions += 1
+            }
+            return 0
+        }
+
+        let oldName = oldPath ?? ""
+        let newName = newPath ?? ""
+        let oldBuffer = oldSide.blob.flatMap { git_blob_rawcontent($0.pointer) }
+        let newBuffer = newSide.blob.flatMap { git_blob_rawcontent($0.pointer) }
+        let oldSize = oldSide.blob.map { Int(git_blob_rawsize($0.pointer)) } ?? 0
+        let newSize = newSide.blob.map { Int(git_blob_rawsize($0.pointer)) } ?? 0
+        let code = oldName.withCString { oldPointer in
+            newName.withCString { newPointer in
+                git_diff_buffers(oldBuffer, oldSize, oldPointer,
+                                 newBuffer, newSize, newPointer,
+                                 &options,
+                                 fileCallback, binaryCallback, hunkCallback, lineCallback,
+                                 Unmanaged.passUnretained(box).toOpaque())
+            }
+        }
+
+        if box.cancelled { throw CancellationError() }
+        if box.notUTF8 { return ComparisonFileDiff(file: file, content: .notUTF8) }
+        if box.binary { return ComparisonFileDiff(file: file, content: .binary) }
+        if code < 0 && !box.truncated {
+            try check(code, String(localized: "Could not compare this file."))
+        }
+        return ComparisonFileDiff(file: file, content: .patch(ComparisonPatch(
+            text: box.text, truncated: box.truncated,
+            insertions: box.insertions, deletions: box.deletions)))
+    }
+}
+
+// MARK: - Comparison list and diff helpers
+
+private extension GitClient {
+    private static func comparisonValidate(_ comparison: CommitComparison,
+                                   limits: ComparisonLimits) throws {
+        try comparisonValidateOID(comparison.base.oid)
+        try comparisonValidateOID(comparison.target.oid)
+        try comparisonValidateLimits(limits)
+    }
+
+    private static func comparisonValidateOID(_ oid: String) throws {
+        guard oid.count == 40, oid.utf8.allSatisfy({ comparisonIsHexDigit($0) }) else {
+            throw GitFailure.message(String(localized: "Invalid comparison commit."))
+        }
+    }
+
+    private static func comparisonValidateLimits(_ limits: ComparisonLimits) throws {
+        let standard = ComparisonLimits.standard
+        guard limits.maximumFiles > 0,
+              limits.maximumFiles <= standard.maximumFiles,
+              limits.maximumBlobBytes > 0,
+              limits.maximumBlobBytes <= standard.maximumBlobBytes,
+              limits.maximumPatchBytes > 0,
+              limits.maximumPatchBytes <= standard.maximumPatchBytes,
+              limits.maximumRenameCandidates > 0,
+              limits.maximumRenameCandidates <= standard.maximumRenameCandidates,
+              limits.maximumRenameBytes > 0,
+              limits.maximumRenameBytes <= standard.maximumRenameBytes,
+              limits.maximumTagPeelDepth > 0,
+              limits.maximumTagPeelDepth <= standard.maximumTagPeelDepth,
+              limits.maximumMetadataBytes > 0,
+              limits.maximumMetadataBytes <= standard.maximumMetadataBytes else {
+            throw GitFailure.message(String(localized: "Invalid comparison limits."))
+        }
+    }
+
+    private static func comparisonTrees(_ repo: OpaquePointer,
+                                _ comparison: CommitComparison, limits: ComparisonLimits) throws -> (old: OpaquePointer, new: OpaquePointer) {
+        let old = try comparisonTree(repo, oid: comparison.base.oid, limit: limits.maximumMetadataBytes)
+        do {
+            let new = try comparisonTree(repo, oid: comparison.target.oid, limit: limits.maximumMetadataBytes)
+            return (old, new)
+        } catch {
+            git_tree_free(old)
+            throw error
+        }
+    }
+
+    private static func comparisonTree(_ repo: OpaquePointer, oid: String, limit: Int) throws -> OpaquePointer {
+        var value = git_oid()
+        guard git_oid_fromstr(&value, oid) == 0 else {
+            throw GitFailure.message(String(localized: "Could not read that commit."))
+        }
+        var database: OpaquePointer?
+        try check(git_repository_odb(&database, repo), String(localized: "Could not read the Git object database."))
+        defer { git_odb_free(database) }
+        var size = 0, type = GIT_OBJECT_INVALID
+        try check(git_odb_read_header(&size, &type, database, &value), String(localized: "Could not read that object."))
+        guard type == GIT_OBJECT_COMMIT, size <= limit else { throw GitFailure.message(String(localized: "Invalid comparison commit.")) }
+        var commit: OpaquePointer?
+        try check(git_commit_lookup(&commit, repo, &value),
+                  String(localized: "Could not read that commit."))
+        guard let commit else {
+            throw GitFailure.message(String(localized: "Could not read that commit."))
+        }
+        defer { git_commit_free(commit) }
+        var tree: OpaquePointer?
+        try check(git_commit_tree(&tree, commit),
+                  String(localized: "Could not read that commit."))
+        guard let tree else {
+            throw GitFailure.message(String(localized: "Could not read that commit."))
+        }
+        return tree
+    }
+
+    private static func comparisonFile(base: String,
+                               target: String,
+                               delta: git_diff_delta,
+                               database: OpaquePointer,
+                               limits: ComparisonLimits) throws -> ComparisonFile {
+        let status = delta.status
+        let oldPresent = status != GIT_DELTA_ADDED
+        let newPresent = status != GIT_DELTA_DELETED
+        let rawOldPath = delta.old_file.path.map { String(cString: $0) }
+        let rawNewPath = delta.new_file.path.map { String(cString: $0) }
+        let oldPath = oldPresent ? (rawOldPath ?? rawNewPath) : nil
+        let newPath = newPresent ? (rawNewPath ?? rawOldPath) : nil
+        let oldMode = oldPresent ? UInt32(delta.old_file.mode) : nil
+        let newMode = newPresent ? UInt32(delta.new_file.mode) : nil
+        let oldOID = oldPresent ? comparisonOID(delta.old_file) : nil
+        let newOID = newPresent ? comparisonOID(delta.new_file) : nil
+        let oldInfo = try comparisonSideInfo(delta.old_file, present: oldPresent, mode: oldMode,
+                                             database: database, limits: limits)
+        let newInfo = try comparisonSideInfo(delta.new_file, present: newPresent, mode: newMode,
+                                             database: database, limits: limits)
+        let change = comparisonChange(status: status, oldOID: oldOID, newOID: newOID,
+                                      oldMode: oldMode, newMode: newMode)
+        return ComparisonFile(
+            baseOID: base, targetOID: target, change: change,
+            oldPath: oldPath, newPath: newPath,
+            oldMode: oldMode, newMode: newMode,
+            oldOID: oldOID, newOID: newOID,
+            oldSize: oldInfo.size, newSize: newInfo.size,
+            oldContent: oldInfo.content, newContent: newInfo.content,
+            similarity: status == GIT_DELTA_RENAMED ? Int(delta.similarity) : nil
+        )
+    }
+
+    private static func comparisonOID(_ file: git_diff_file) -> String? {
+        let value = format(file.id)
+        if value == String(repeating: "0", count: 40) { return nil }
+        return value
+    }
+
+    private static func comparisonSideInfo(_ file: git_diff_file,
+                                   present: Bool,
+                                   mode: UInt32?,
+                                   database: OpaquePointer,
+                                   limits: ComparisonLimits) throws -> (content: ComparisonContentKind, size: Int?) {
+        guard present, let mode else { return (.missing, nil) }
+        if mode == UInt32(GIT_FILEMODE_COMMIT.rawValue) { return (.gitlink, nil) }
+        if (mode & 0o170000) == 0o040000 { return (.directory, nil) }
+
+        var oid = file.id
+        var type = GIT_OBJECT_INVALID
+        var size = 0
+        let header = git_odb_read_header(&size, &type, database, &oid)
+        if matches(header, GIT_ENOTFOUND) { return (.missing, nil) }
+        try check(header, String(localized: "Could not read that object."))
+        if type == GIT_OBJECT_COMMIT { return (.gitlink, size) }
+        if type == GIT_OBJECT_TREE { return (.directory, size) }
+        guard type == GIT_OBJECT_BLOB else { return (.unknown, size) }
+        if size > limits.maximumBlobBytes { return (.tooLarge, size) }
+        if mode == UInt32(GIT_FILEMODE_LINK.rawValue) { return (.symlink, size) }
+        return (.unknown, size)
+    }
+
+    private static func comparisonChange(status: git_delta_t,
+                                 oldOID: String?,
+                                 newOID: String?,
+                                 oldMode: UInt32?,
+                                 newMode: UInt32?) -> ComparisonChangeKind {
+        if status == GIT_DELTA_ADDED { return .added }
+        if status == GIT_DELTA_DELETED { return .deleted }
+        if status == GIT_DELTA_RENAMED { return .renamed }
+        if status == GIT_DELTA_TYPECHANGE { return .typeChanged }
+        if status == GIT_DELTA_MODIFIED {
+            if let oldOID, let newOID, oldOID == newOID,
+               let oldMode, let newMode, oldMode != newMode {
+                return .modeChanged
+            }
+            return .modified
+        }
+        return .other
+    }
+
+    /// Header-only preflight for rename detection. No blob content is loaded here;
+    /// missing/oversized/non-blob candidates, too many candidates, or too many total
+    /// header bytes disable renames with an explicit `renameCandidates` reason.
+    private static func comparisonRenamePreflight(_ diff: OpaquePointer,
+                                          database: OpaquePointer,
+                                          limits: ComparisonLimits,
+                                          checkpoint: () throws -> Void) throws -> Bool {
+        var candidates = 0
+        var total = 0
+        for index in 0..<git_diff_num_deltas(diff) {
+            try checkpoint()
+            guard let delta = git_diff_get_delta(diff, index)?.pointee else { continue }
+
+            let file: git_diff_file
+            let mode: UInt32
+            if delta.status == GIT_DELTA_ADDED {
+                file = delta.new_file
+                mode = UInt32(delta.new_file.mode)
+            } else if delta.status == GIT_DELTA_DELETED {
+                file = delta.old_file
+                mode = UInt32(delta.old_file.mode)
+            } else {
+                continue
+            }
+
+            candidates += 1
+            if candidates > limits.maximumRenameCandidates { return false }
+            let typeBits = mode & 0o170000
+            guard typeBits == 0o100000 || typeBits == 0o120000 else { continue }
+
+            var oid = file.id
+            var type = GIT_OBJECT_INVALID
+            var size = 0
+            guard git_odb_read_header(&size, &type, database, &oid) == 0,
+                  type == GIT_OBJECT_BLOB,
+                  size <= limits.maximumBlobBytes else {
+                return false
+            }
+            total += size
+            if total > limits.maximumRenameBytes { return false }
+        }
+        return true
+    }
+
+    private static func comparisonOIDMatches(_ expected: String?, _ actual: git_oid) -> Bool {
+        guard let expected, expected != String(repeating: "0", count: 40) else { return false }
+        return expected.caseInsensitiveCompare(format(actual)) == .orderedSame
+    }
+
+    private static func comparisonValidateChange(_ change: ComparisonChangeKind,
+                                         oldEntry: IndexedFile?,
+                                         newEntry: IndexedFile?,
+                                         oldPath: String?,
+                                         newPath: String?) throws {
+        let mismatch = GitFailure.message(String(localized: "The selected file does not match this comparison."))
+        switch change {
+        case .added:
+            guard oldEntry == nil, newEntry != nil else { throw mismatch }
+        case .deleted:
+            guard oldEntry != nil, newEntry == nil else { throw mismatch }
+        case .renamed:
+            guard oldEntry != nil, newEntry != nil,
+                  let oldPath, let newPath, oldPath != newPath else { throw mismatch }
+        case .typeChanged:
+            guard let oldEntry, let newEntry,
+                  comparisonFileType(oldEntry.mode) != comparisonFileType(newEntry.mode) else {
+                throw mismatch
+            }
+        case .modeChanged:
+            guard let oldEntry, let newEntry,
+                  comparisonFileType(oldEntry.mode) == comparisonFileType(newEntry.mode),
+                  oldEntry.mode != newEntry.mode,
+                  oidsEqual(oldEntry.oid, newEntry.oid) else {
+                throw mismatch
+            }
+        case .modified:
+            guard oldEntry != nil, newEntry != nil else { throw mismatch }
+        case .other:
+            break
+        }
+    }
+
+    private static func comparisonFileType(_ mode: UInt32) -> UInt32 {
+        mode & 0o170000
+    }
+
+    private static func comparisonLoadSide(_ repo: OpaquePointer,
+                                   database: OpaquePointer,
+                                   entry: IndexedFile?,
+                                   absent: Bool,
+                                   limit: Int) throws -> ComparisonLoadedSide {
+        guard !absent, let entry else {
+            return ComparisonLoadedSide(present: false, kind: .missing, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        if entry.mode == UInt32(GIT_FILEMODE_COMMIT.rawValue) || entry.type == GIT_OBJECT_COMMIT {
+            return ComparisonLoadedSide(present: true, kind: .gitlink, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: format(entry.oid))
+        }
+        if entry.mode == UInt32(GIT_FILEMODE_TREE.rawValue) || entry.type == GIT_OBJECT_TREE {
+            return ComparisonLoadedSide(present: true, kind: .directory, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        guard entry.type == GIT_OBJECT_BLOB else {
+            return ComparisonLoadedSide(present: true, kind: .missing, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+
+        var oid = entry.oid
+        var type = GIT_OBJECT_INVALID
+        var size = 0
+        let header = git_odb_read_header(&size, &type, database, &oid)
+        if matches(header, GIT_ENOTFOUND) {
+            return ComparisonLoadedSide(present: true, kind: .missing, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        try check(header, String(localized: "Could not read that object."))
+        guard type == GIT_OBJECT_BLOB else {
+            return ComparisonLoadedSide(present: true, kind: .missing, size: nil,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        if size > limit {
+            return ComparisonLoadedSide(present: true, kind: .tooLarge, size: size,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+
+        var blob: OpaquePointer?
+        let lookup = git_blob_lookup(&blob, repo, &oid)
+        if matches(lookup, GIT_ENOTFOUND) {
+            return ComparisonLoadedSide(present: true, kind: .missing, size: size,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        try check(lookup, String(localized: "Could not read that object."))
+        guard let blob else {
+            return ComparisonLoadedSide(present: true, kind: .missing, size: size,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        let rawSize = Int(git_blob_rawsize(blob))
+        if rawSize > limit {
+            git_blob_free(blob)
+            return ComparisonLoadedSide(present: true, kind: .tooLarge, size: rawSize,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+
+        if entry.mode == UInt32(GIT_FILEMODE_LINK.rawValue) {
+            let data = comparisonBlobData(blob)
+            git_blob_free(blob)
+            guard let data else {
+                return ComparisonLoadedSide(present: true, kind: .missing, size: rawSize,
+                                            blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+            }
+            guard let target = String(data: data, encoding: .utf8) else {
+                return ComparisonLoadedSide(present: true, kind: .notUTF8, size: rawSize,
+                                            blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+            }
+            return ComparisonLoadedSide(present: true, kind: .symlink, size: rawSize,
+                                        blob: nil, symlinkTarget: target, gitlinkOID: nil)
+        }
+
+        if git_blob_is_binary(blob) == 1 {
+            git_blob_free(blob)
+            return ComparisonLoadedSide(present: true, kind: .binary, size: rawSize,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        guard let data = comparisonBlobData(blob) else {
+            git_blob_free(blob)
+            return ComparisonLoadedSide(present: true, kind: .missing, size: rawSize,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        guard String(data: data, encoding: .utf8) != nil else {
+            git_blob_free(blob)
+            return ComparisonLoadedSide(present: true, kind: .notUTF8, size: rawSize,
+                                        blob: nil, symlinkTarget: nil, gitlinkOID: nil)
+        }
+        return ComparisonLoadedSide(present: true, kind: .text, size: rawSize,
+                                    blob: ComparisonBlob(blob), symlinkTarget: nil, gitlinkOID: nil)
+    }
+
+    private static func comparisonBlobData(_ blob: OpaquePointer) -> Data? {
+        let size = Int(git_blob_rawsize(blob))
+        if size == 0 { return Data() }
+        guard size <= FileInspection.maximumBytes,
+              let pointer = git_blob_rawcontent(blob) else { return nil }
+        return Data(bytes: pointer, count: size)
+    }
+
+    private static func comparisonPatchHeader(file: ComparisonFile,
+                                      oldPath: String?,
+                                      newPath: String?,
+                                      oldEntry: IndexedFile?,
+                                      newEntry: IndexedFile?) -> [String] {
+        let oldName = oldPath ?? newPath ?? ""
+        let newName = newPath ?? oldPath ?? ""
+        var lines: [String] = []
+        lines.append("diff --git \(comparisonQuotedPath("a/" + oldName)) \(comparisonQuotedPath("b/" + newName))\n")
+
+        let oldMode = oldEntry.map { $0.mode }
+        let newMode = newEntry.map { $0.mode }
+        if oldEntry == nil, let newMode {
+            lines.append("new file mode \(String(newMode, radix: 8))\n")
+        } else if newEntry == nil, let oldMode {
+            lines.append("deleted file mode \(String(oldMode, radix: 8))\n")
+        } else if let oldMode, let newMode {
+            if let oldPath, let newPath, oldPath != newPath {
+                if let similarity = file.similarity {
+                    lines.append("similarity index \(similarity)%\n")
+                }
+                lines.append("rename from \(comparisonQuotedPath(oldPath))\n")
+                lines.append("rename to \(comparisonQuotedPath(newPath))\n")
+            }
+            if oldMode != newMode {
+                lines.append("old mode \(String(oldMode, radix: 8))\n")
+                lines.append("new mode \(String(newMode, radix: 8))\n")
+            }
+        }
+
+        lines.append(oldEntry == nil ? "--- /dev/null\n" : "--- \(comparisonQuotedPath("a/" + oldName))\n")
+        lines.append(newEntry == nil ? "+++ /dev/null\n" : "+++ \(comparisonQuotedPath("b/" + newName))\n")
+        return lines
+    }
+
+    private static func comparisonQuotedPath(_ path: String) -> String {
+        guard path.unicodeScalars.contains(where: { $0.value <= 32 || $0.value == 127 || $0 == "\"" || $0 == "\\" }) else { return path }
+        var quoted = "\""
+        for scalar in path.unicodeScalars {
+            switch scalar.value {
+            case 34: quoted += "\\\""
+            case 92: quoted += "\\\\"
+            case 10: quoted += "\\n"
+            case 13: quoted += "\\r"
+            case 9: quoted += "\\t"
+            case 0..<32, 127: quoted += String(format: "\\%03o", scalar.value)
+            default: quoted.unicodeScalars.append(scalar)
+            }
+        }
+        return quoted + "\""
+    }
+
+    private static func comparisonHunkHeader(_ hunk: UnsafePointer<git_diff_hunk>) -> String {
+        let length = min(Int(hunk.pointee.header_len), 128)
+        var header = hunk.pointee.header
+        let bytes: [UInt8] = withUnsafeBytes(of: &header) { raw in
+            var slice = Array(raw.prefix(length))
+            while slice.last == 0 { slice.removeLast() }
+            return slice
+        }
+        return String(decoding: bytes, as: UTF8.self)
     }
 }

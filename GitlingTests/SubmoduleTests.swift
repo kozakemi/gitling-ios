@@ -386,4 +386,105 @@ final class SubmoduleTests: XCTestCase {
         XCTAssertNotNil(protected.first?.problem)
         XCTAssertFalse(protected.contains { $0.url.contains("secret") })
     }
+
+    func testHTTPCloneAndFetchUseParentSignInAndKeepParentChanges() throws {
+        let root = try root(), source = try repository("source", root: root), parent = try repository("parent", root: root)
+        let server = try SubmoduleHTTPServer()
+        defer { server.stop() }
+        let password = " offline password "
+        server.serve(try .init(at: source, username: "fixture-user", password: password))
+        try addModule(parent, path: "tools/fixed_unit_queue", source: source, url: server.authority + "/fixed_unit_queue.git")
+        let inherited = SubmoduleCredentialRouter.parentCredentials(
+            origin: server.authority.replacingOccurrences(of: "http://", with: "http://fixture-user@") + "/Js_ms_rtos.git",
+            username: "", secret: password)
+        let router = SubmoduleCredentialRouter(inherited: inherited)
+        let auth = SubmoduleAuth(resolve: { router.credentials(for: $0) })
+        try write("staged parent\n", at: parent.appendingPathComponent("a.txt"))
+        try GitClient.stage(at: parent, path: "a.txt")
+        try write("unstaged parent\n", at: parent.appendingPathComponent("a.txt"))
+        try write("untracked parent\n", at: parent.appendingPathComponent("keep.txt"))
+        let originalHead = try head(parent), originalIndex = try index(parent)
+        let progress = ProgressRecorder()
+        try GitClient.updateSubmodules(at: parent, auth: auth, progress: { progress.record($0) })
+        XCTAssertTrue(progress.values.contains { $0.phase == .checkingSubmodules })
+        XCTAssertTrue(progress.values.contains { $0.phase == .receiving && $0.bytes > 0 && $0.submodule == "tools/fixed_unit_queue" })
+        XCTAssertTrue(progress.values.contains { $0.phase == .checkingOut && $0.total > 0 && $0.submodule == "tools/fixed_unit_queue" })
+        let child = parent.appendingPathComponent("tools/fixed_unit_queue")
+        let old = try head(child)
+        XCTAssertEqual(old, try head(source))
+        try write("new HTTP target\n", at: source.appendingPathComponent("a.txt")); try commit(source)
+        server.serve(try .init(at: source, username: "fixture-user", password: password))
+        try setTarget(parent, path: "tools/fixed_unit_queue", oid: head(source))
+        let targetIndex = try index(parent)
+        XCTAssertNotEqual(targetIndex, originalIndex)
+        try GitClient.updateSubmodules(at: parent, auth: auth)
+        XCTAssertEqual(try head(child), try head(source))
+        XCTAssertEqual(try index(parent), targetIndex)
+        XCTAssertEqual(try head(parent), originalHead)
+        XCTAssertEqual(try String(contentsOf: parent.appendingPathComponent("a.txt"), encoding: .utf8), "unstaged parent\n")
+        XCTAssertEqual(try String(contentsOf: parent.appendingPathComponent("keep.txt"), encoding: .utf8), "untracked parent\n")
+        XCTAssertFalse(GitClient.configText(at: child).contains(password))
+        XCTAssertGreaterThanOrEqual(server.counts.accepted, 4)
+        XCTAssertGreaterThan(server.counts.rejected, 0)
+        XCTAssertNil(try GitClient.submodules(at: parent).checkpoint)
+    }
+
+    func testHTTPAuthenticationFailureCanResumeAndDirtyChildBlocksFurtherRequests() throws {
+        let root = try root(), source = try repository("source", root: root), parent = try repository("parent", root: root)
+        let server = try SubmoduleHTTPServer()
+        defer { server.stop() }
+        server.serve(try .init(at: source, username: "fixture-user", password: "correct-offline-password"))
+        try addModule(parent, path: "tools/fixed_unit_queue", source: source, url: server.authority + "/fixed_unit_queue.git")
+        let before = try index(parent), originalHead = try head(parent)
+        XCTAssertThrowsError(try GitClient.updateSubmodules(at: parent)) { error in
+            XCTAssertTrue(error.localizedDescription.contains(String(localized: "The submodule remote rejected the sign-in. Enter the username and password for that server, then retry. Completed work and local Git data were kept.")))
+        }
+        let wrong = SubmoduleAuth(resolve: { _ in .init(username: "fixture-user", secret: "wrong-offline-password") })
+        XCTAssertThrowsError(try GitClient.updateSubmodules(at: parent, resume: true, auth: wrong)) { error in
+            XCTAssertTrue(error.localizedDescription.contains(String(localized: "The submodule remote rejected the sign-in. Enter the username and password for that server, then retry. Completed work and local Git data were kept.")))
+            XCTAssertFalse(error.localizedDescription.contains("wrong-offline-password"))
+            XCTAssertFalse(error.localizedDescription.contains(server.authority))
+        }
+        XCTAssertNotNil(try GitClient.submodules(at: parent).checkpoint)
+        XCTAssertEqual(try index(parent), before)
+        XCTAssertEqual(try head(parent), originalHead)
+        XCTAssertLessThanOrEqual(server.counts.rejected, 8)
+        let journal = try String(contentsOf: parent.appendingPathComponent(".git/gitling-submodules.json"), encoding: .utf8)
+        XCTAssertFalse(journal.contains("wrong-offline-password"))
+        let correct = SubmoduleAuth(resolve: { _ in .init(username: "fixture-user", secret: "correct-offline-password") })
+        try GitClient.updateSubmodules(at: parent, resume: true, auth: correct)
+        let child = parent.appendingPathComponent("tools/fixed_unit_queue")
+        XCTAssertEqual(try head(child), try head(source))
+        XCTAssertNil(try GitClient.submodules(at: parent).checkpoint)
+        try write("local child data\n", at: child.appendingPathComponent("a.txt"))
+        let counts = server.counts
+        XCTAssertThrowsError(try GitClient.updateSubmodules(at: parent, auth: correct))
+        XCTAssertEqual(server.counts.accepted, counts.accepted)
+        XCTAssertEqual(server.counts.rejected, counts.rejected)
+        XCTAssertEqual(try String(contentsOf: child.appendingPathComponent("a.txt"), encoding: .utf8), "local child data\n")
+        XCTAssertEqual(try index(parent), before)
+    }
+
+    func testHTTPPartialSuccessResumesWithSeparatePathScopedAccounts() throws {
+        let root = try root(), first = try repository("first", root: root), second = try repository("second", root: root)
+        let parent = try repository("parent", root: root), server = try SubmoduleHTTPServer()
+        defer { server.stop() }
+        try write("second module\n", at: second.appendingPathComponent("a.txt")); try commit(second)
+        server.serve(try .init(at: first, username: "oauth2", password: "first-offline-token"), path: "/first/library.git")
+        server.serve(try .init(at: second, username: "oauth2", password: "second-offline-token"), path: "/second/library.git")
+        try addModule(parent, path: "a-first", source: first, url: server.authority + "/first/library.git")
+        try addModule(parent, path: "tools/fixed_unit_queue", source: second, url: server.authority + "/second/library.git")
+        let account1 = RemoteAccount(id: UUID(), provider: .gitlab, baseURL: server.authority + "/first", username: "one", displayName: "One", createdAt: .now)
+        let account2 = RemoteAccount(id: UUID(), provider: .gitlab, baseURL: server.authority + "/second", username: "two", displayName: "Two", createdAt: .now)
+        let before = try index(parent)
+        let wrong = SubmoduleCredentialRouter(accounts: [.init(account: account1, secret: "first-offline-token"), .init(account: account2, secret: "wrong-offline-token")])
+        XCTAssertThrowsError(try GitClient.updateSubmodules(at: parent, auth: .init(resolve: { wrong.credentials(for: $0) })))
+        XCTAssertEqual(try GitClient.submodules(at: parent).checkpoint?.completed, ["a-first"])
+        XCTAssertEqual(try head(parent.appendingPathComponent("a-first")), try head(first))
+        let correct = SubmoduleCredentialRouter(accounts: [.init(account: account1, secret: "first-offline-token"), .init(account: account2, secret: "second-offline-token")])
+        try GitClient.updateSubmodules(at: parent, resume: true, auth: .init(resolve: { correct.credentials(for: $0) }))
+        XCTAssertEqual(try head(parent.appendingPathComponent("tools/fixed_unit_queue")), try head(second))
+        XCTAssertEqual(try index(parent), before)
+        XCTAssertNil(try GitClient.submodules(at: parent).checkpoint)
+    }
 }

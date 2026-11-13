@@ -6,6 +6,9 @@ final class RepoStore: ObservableObject {
     @Published var repos: [RepoSummary] = []
     @Published var isBusy = false
     @Published var statusLine = ""
+    @Published private(set) var operationProgress: OperationProgressState?
+    private var progressRelay: GitProgressRelay?
+    private var activeProgressID: UUID?
     @Published var alert: String?
     @Published var revision = 0
     @Published var userName: String
@@ -457,7 +460,7 @@ final class RepoStore: ObservableObject {
             secret: secret
         )
         let suppliedSecret = secret
-        run(String(localized: "Cloning…"), repository: name, publishStorage: true, focus: name, linkAccount: chosen, linkSSHKey: chosenSSHKey) {
+        runProgress(String(localized: "Cloning…"), repository: name, publishStorage: true, focus: name, linkAccount: chosen, linkSSHKey: chosenSSHKey) { progress in
             try GitClient.clone(
                 url: url,
                 name: name,
@@ -466,7 +469,8 @@ final class RepoStore: ObservableObject {
                 secret: creds.secret,
                 sshKey: sshMaterial,
                 lfsAuth: lfs,
-                worktreeBookmark: worktreeBookmark
+                worktreeBookmark: worktreeBookmark,
+                progress: progress
             )
             if chosen == nil, let host = GitClient.host(of: url), !suppliedSecret.isEmpty {
                 KeychainStore.save(host: host, username: creds.username, secret: creds.secret)
@@ -636,20 +640,38 @@ final class RepoStore: ObservableObject {
     func updateSubmodules(name: String, action: SubmoduleAction, recursive: Bool, initializeMissing: Bool,
                           resume: Bool = false, selectedAccounts: [String: UUID] = [:], selectedSSHKeys: [String: UUID] = [:], overrides: [String: SubmoduleCredentials] = [:]) {
         let url = repoURL(name)
+        let auth = submoduleAuth(name: name, selectedAccounts: selectedAccounts, selectedSSHKeys: selectedSSHKeys, overrides: overrides)
+        runProgress(String(localized: "Updating submodules…"), repository: name, publishStorage: true) { progress in
+            try GitClient.updateSubmodules(at: url, action: action, recursive: recursive, initializeMissing: initializeMissing, resume: resume, auth: auth, progress: progress)
+        }
+    }
+
+    /// Capture credentials before leaving the main actor. Provider tokens stay
+    /// in the path-scoped account router; only legacy manual sign-in is inherited.
+    func submoduleAuth(name: String, selectedAccounts: [String: UUID] = [:],
+                       selectedSSHKeys: [String: UUID] = [:], overrides: [String: SubmoduleCredentials] = [:]) -> SubmoduleAuth {
+        let url = repoURL(name)
         let accounts = accounts.compactMap { account -> SubmoduleAccountSecret? in
             guard let secret = secret(for: account) else { return nil }
             return .init(account: account, secret: secret)
         }.sorted { $0.account.id == linkedAccountID(for: name) && $1.account.id != linkedAccountID(for: name) }
         var keys = selectedSSHKeys.compactMapValues { sshKeyMaterial(for: $0) }
+        var inherited: [String: SubmoduleCredentials] = [:]
         // The repository's linked key is scoped to its own SSH authority.
-        if let origin = try? GitClient.originURL(url), SSHURL.isSSH(origin),
-           let authority = SubmoduleAuth.authority(origin), keys[authority] == nil,
-           let key = sshKeyMaterial(for: linkedSSHKeyID(for: name)) { keys[authority] = key }
-        let router = SubmoduleCredentialRouter(accounts: accounts, selectedAccounts: selectedAccounts, sshKeys: keys, overrides: overrides)
-        let auth = SubmoduleAuth(resolve: { router.credentials(for: $0) })
-        run(String(localized: "Updating submodules…"), repository: name, publishStorage: true) {
-            try GitClient.updateSubmodules(at: url, action: action, recursive: recursive, initializeMissing: initializeMissing, resume: resume, auth: auth)
+        // HTTP sign-in is reused only for a submodule on that same scheme, host, and port.
+        if let origin = try? GitClient.originURL(url) {
+            if SSHURL.isSSH(origin),
+               let authority = SubmoduleAuth.authority(origin), keys[authority] == nil,
+               let key = sshKeyMaterial(for: linkedSSHKeyID(for: name)) { keys[authority] = key }
+            let split = GitRemoteURL.splitUserInfo(origin)
+            if !SSHURL.isSSH(origin), account(for: split.url, repoName: name) == nil {
+                let saved = GitClient.host(of: split.url).flatMap { KeychainStore.load(host: $0) }
+                inherited = SubmoduleCredentialRouter.parentCredentials(origin: origin,
+                    username: split.username ?? saved?.username ?? "", secret: split.password ?? saved?.secret ?? "")
+            }
         }
+        let router = SubmoduleCredentialRouter(accounts: accounts, selectedAccounts: selectedAccounts, sshKeys: keys, overrides: overrides, inherited: inherited)
+        return SubmoduleAuth(resolve: { router.credentials(for: $0) })
     }
 
     func endSubmoduleUpdate(name: String) {
@@ -722,14 +744,14 @@ final class RepoStore: ObservableObject {
     func pull(name: String, username: String, secret: String) {
         let userName = userName
         let userEmail = userEmail
-        runSync(String(localized: "Pulling…"), name: name, username: username, secret: secret) { url, user, token, ssh, lfs in
-            try GitClient.pull(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, name: userName, email: userEmail)
+        runSync(String(localized: "Pulling…"), name: name, username: username, secret: secret) { url, user, token, ssh, lfs, progress in
+            try GitClient.pull(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, name: userName, email: userEmail, progress: progress)
         }
     }
 
     func fetch(name: String, username: String, secret: String, remoteName: String? = nil) {
-        runSync(String(localized: "Fetching…"), name: name, remoteName: remoteName, username: username, secret: secret) { url, user, token, ssh, lfs in
-            try GitClient.fetch(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName)
+        runSync(String(localized: "Fetching…"), name: name, remoteName: remoteName, username: username, secret: secret) { url, user, token, ssh, lfs, progress in
+            try GitClient.fetch(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName, progress: progress)
         }
     }
 
@@ -738,6 +760,7 @@ final class RepoStore: ObservableObject {
         let url = repoURL(name)
         isBusy = true
         statusLine = String(localized: "Working…")
+        _ = beginProgress(statusLine, repository: name)
         Task {
             let problem = await Task.detached { () -> String? in
                 do { try GitClient.checkoutTag(at: url, tag: detail); return nil }
@@ -845,8 +868,8 @@ final class RepoStore: ObservableObject {
     }
 
     func push(name: String, username: String, secret: String, remoteName: String? = nil) {
-        runSync(String(localized: "Pushing…"), name: name, remoteName: remoteName, push: true, username: username, secret: secret) { url, user, token, ssh, lfs in
-            try GitClient.push(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName)
+        runSync(String(localized: "Pushing…"), name: name, remoteName: remoteName, push: true, username: username, secret: secret) { url, user, token, ssh, lfs, progress in
+            try GitClient.push(at: url, username: user, secret: token, sshKey: ssh, lfsAuth: lfs, remoteName: remoteName, progress: progress)
         }
     }
 
@@ -856,11 +879,12 @@ final class RepoStore: ObservableObject {
 
     private func runSync(
         _ label: String, name: String, remoteName: String? = nil, push: Bool = false, username: String, secret: String,
-        _ work: @escaping @Sendable (URL, String, String, SSHKeyMaterial?, LFSAuth?) throws -> Void
+        _ work: @escaping @Sendable (URL, String, String, SSHKeyMaterial?, LFSAuth?, @escaping GitProgressHandler) throws -> Void
     ) {
         guard !isBusy else { return }
         isBusy = true
         statusLine = label
+        let progress = beginProgress(label, repository: name)
         let url = repoURL(name)
         Task {
             do {
@@ -868,7 +892,7 @@ final class RepoStore: ObservableObject {
                 let creds = account(for: remote, repoName: name, username: username, secret: secret)
                 let ssh = sshKeyMaterial(for: remote, repoName: name)
                 let lfs = lfsAuth(for: remote, repoName: name)
-                try await Task.detached { try work(url, creds.username, creds.secret, ssh, lfs) }.value
+                try await Task.detached { try work(url, creds.username, creds.secret, ssh, lfs, progress) }.value
                 if !secret.isEmpty, let host = GitClient.host(of: remote) {
                     KeychainStore.save(host: host, username: creds.username, secret: creds.secret)
                 }
@@ -885,6 +909,7 @@ final class RepoStore: ObservableObject {
         guard !isBusy else { return }
         isBusy = true
         statusLine = label
+        _ = beginProgress(label, repository: name)
         let url = repoURL(name)
         Task {
             let origin = await Task.detached { (try? GitClient.transportURL(at: url)) ?? "" }.value
@@ -909,17 +934,46 @@ final class RepoStore: ObservableObject {
         linkSSHKey: SSHKey? = nil,
         _ work: @escaping @Sendable () throws -> Void
     ) {
+        runProgress(label, repository: repository, publishStorage: publishStorage, resetLinks: resetLinks, focus: focus, linkAccount: linkAccount, linkSSHKey: linkSSHKey) { _ in try work() }
+    }
+
+    private func runProgress(
+        _ label: String,
+        repository: String? = nil,
+        publishStorage: Bool = false,
+        resetLinks: Bool = false,
+        focus: String? = nil,
+        linkAccount: RemoteAccount? = nil,
+        linkSSHKey: SSHKey? = nil,
+        _ work: @escaping @Sendable (@escaping GitProgressHandler) throws -> Void
+    ) {
         guard !isBusy else { return }
         isBusy = true
         statusLine = label
+        let progress = beginProgress(label, repository: repository)
         Task.detached {
             do {
-                try work()
+                try work(progress)
                 await self.finish(nil, repository: repository, publishStorage: publishStorage, resetLinks: resetLinks, focus: focus, linkAccount: linkAccount, linkSSHKey: linkSSHKey)
             } catch {
                 await self.finish(error.localizedDescription, repository: repository, publishStorage: publishStorage)
             }
         }
+    }
+
+    private func beginProgress(_ title: String, repository: String?) -> GitProgressHandler {
+        progressRelay?.invalidate()
+        let id = UUID()
+        activeProgressID = id
+        operationProgress = .init(id: id, title: title, repository: repository, startedAt: Date(), progress: .init(phase: .preparing))
+        let relay = GitProgressRelay { [weak self] value in
+            Task { @MainActor [weak self] in
+                guard let self, self.activeProgressID == id, self.isBusy else { return }
+                self.operationProgress?.progress = value
+            }
+        }
+        progressRelay = relay
+        return { value in relay.submit(value) }
     }
 
     private func finish(
@@ -931,6 +985,10 @@ final class RepoStore: ObservableObject {
         linkAccount: RemoteAccount? = nil,
         linkSSHKey: SSHKey? = nil
     ) async {
+        activeProgressID = nil
+        progressRelay?.invalidate()
+        progressRelay = nil
+        operationProgress?.progress = .init(phase: .refreshing)
         if let error {
             alert = error
         } else {
@@ -953,6 +1011,7 @@ final class RepoStore: ObservableObject {
         await reload(repository: repository)
         isBusy = false
         statusLine = ""
+        operationProgress = nil
         revision += 1
         if FileProviderRegistration.usesProviderLocation {
             FileProviderRegistration.signal()

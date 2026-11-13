@@ -35,11 +35,17 @@ if [ "${TEST_DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
+# Different simulator runtimes thin Assets.car differently. Sharing a product
+# directory can let Xcode reuse CodeResources after relinking the asset catalog.
+# Keep each approved destination's build/signing cache separate; no device clones.
+device_id="${destination##*id=}"
+derived_data="${TEST_DERIVED_DATA:-$root/build/TestDerivedData-$device_id}"
+
 xcodebuild \
   -project "$root/Gitling.xcodeproj" \
   -scheme Gitling \
   -destination "$destination" \
-  -derivedDataPath "${TEST_DERIVED_DATA:-$root/build/TestDerivedData}" \
+  -derivedDataPath "$derived_data" \
   -parallel-testing-enabled NO \
   -maximum-concurrent-test-simulator-destinations 1 \
   test

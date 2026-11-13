@@ -107,7 +107,7 @@ struct RepoDetailView: View {
             }
         }
         .overlay {
-            if spinnerLoads > 0 || store.isBusy || preparingRestore {
+            if !store.isBusy && (spinnerLoads > 0 || preparingRestore) {
                 ZStack {
                     Color.black.opacity(0.12)
                         .ignoresSafeArea()
@@ -130,6 +130,9 @@ struct RepoDetailView: View {
                     let ref = selectedBranchInfo.map { ($0.isRemote ? "refs/remotes/" : "refs/heads/") + $0.name }
                     HistorySearchPage(repo: repoURL, scope: allBranches ? ref.map { .reference($0) } ?? .all : .current, selectedReference: ref)
                 } label: { Label("Search History", systemImage: "magnifyingglass") }
+                NavigationLink { CommitComparisonPage(repo: repoURL) } label: {
+                    Label("Compare Commits", systemImage: "arrow.left.arrow.right")
+                }.accessibilityIdentifier("comparison.open")
             } else if section == 0 {
                 NavigationLink { FileSearchPage(repo: repoURL) } label: { Label("Search Files", systemImage: "magnifyingglass") }
             }
@@ -855,34 +858,54 @@ private struct CommitRefChip: View {
     }
 }
 
-private struct DiffTextView: UIViewRepresentable {
+struct DiffTextView: UIViewRepresentable {
     let text: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
         view.isEditable = false
         view.isSelectable = true
+        view.adjustsFontForContentSizeCategory = false
         view.backgroundColor = .clear
         view.textAlignment = .left
         view.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         view.textContainer.lineFragmentPadding = 0
         view.alwaysBounceVertical = true
+        let font = Self.font(for: dynamicTypeSize)
+        view.font = font
         view.attributedText = DiffStyler.attributed(text, font: font)
         return view
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
+        let font = Self.font(for: dynamicTypeSize)
         if view.attributedText.string != text || view.font?.pointSize != font.pointSize {
             view.font = font
             view.attributedText = DiffStyler.attributed(text, font: font)
         }
     }
 
-    private var font: UIFont {
-        UIFont.monospacedSystemFont(
-            ofSize: UIFont.preferredFont(forTextStyle: .caption1).pointSize,
-            weight: .regular
-        )
+    private static func font(for size: DynamicTypeSize) -> UIFont {
+        let category: UIContentSizeCategory
+        switch size {
+        case .xSmall: category = .extraSmall
+        case .small: category = .small
+        case .medium: category = .medium
+        case .large: category = .large
+        case .xLarge: category = .extraLarge
+        case .xxLarge: category = .extraExtraLarge
+        case .xxxLarge: category = .extraExtraExtraLarge
+        case .accessibility1: category = .accessibilityMedium
+        case .accessibility2: category = .accessibilityLarge
+        case .accessibility3: category = .accessibilityExtraLarge
+        case .accessibility4: category = .accessibilityExtraExtraLarge
+        case .accessibility5: category = .accessibilityExtraExtraExtraLarge
+        @unknown default: category = size.isAccessibilitySize ? .accessibilityExtraExtraExtraLarge : .large
+        }
+        let traits = UITraitCollection(preferredContentSizeCategory: category)
+        let pointSize = UIFont.preferredFont(forTextStyle: .caption1, compatibleWith: traits).pointSize
+        return UIFont.monospacedSystemFont(ofSize: pointSize, weight: .regular)
     }
 }
 
@@ -1185,15 +1208,19 @@ private struct RepoOperationsSheet: View {
             }
             .overlay {
                 if isLoading || store.isBusy {
-                    ZStack {
-                        Color.black.opacity(0.12)
-                            .ignoresSafeArea()
-                        ProgressView()
-                            .controlSize(.large)
-                            .padding(24)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    if let progress = store.operationProgress, store.isBusy {
+                        OperationProgressOverlay(state: progress)
+                    } else {
+                        ZStack {
+                            Color.black.opacity(0.12)
+                                .ignoresSafeArea()
+                            ProgressView()
+                                .controlSize(.large)
+                                .padding(24)
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                        }
+                        .allowsHitTesting(true)
                     }
-                    .allowsHitTesting(true)
                 }
             }
             .animation(.easeInOut(duration: 0.15), value: isLoading || store.isBusy)
