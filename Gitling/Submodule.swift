@@ -78,18 +78,43 @@ struct SubmoduleCredentialRouter: Sendable {
     var selectedAccounts: [String: UUID] = [:]
     var sshKeys: [String: SSHKeyMaterial] = [:]
     var overrides: [String: SubmoduleCredentials] = [:]
+    /// Sign-in already stored for the parent remote. A submodule receives it only
+    /// when its scheme, host, and port are the same, and no account or typed password applies.
+    var inherited: [String: SubmoduleCredentials] = [:]
+
+    /// Map a parent remote onto one authority. An embedded password is removed from the URL
+    /// and returned only as the secret for that exact scheme, host, and port.
+    static func parentCredentials(origin: String, username: String, secret: String) -> [String: SubmoduleCredentials] {
+        let split = GitRemoteURL.splitUserInfo(origin)
+        guard !SSHURL.isSSH(split.url), let authority = SubmoduleAuth.authority(split.url) else { return [:] }
+        let typedName = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = typedName.isEmpty ? (split.username ?? "") : typedName
+        let value = secret.isEmpty ? (split.password ?? "") : secret
+        guard !name.isEmpty || !value.isEmpty else { return [:] }
+        return [authority: .init(username: name, secret: value)]
+    }
 
     func credentials(for url: String) -> SubmoduleCredentials {
         guard let authority = SubmoduleAuth.authority(url) else { return .init() }
         if SSHURL.isSSH(url) { return .init(sshKey: sshKeys[authority]) }
-        if let manual = overrides[authority], !manual.secret.isEmpty { return manual }
         let matches = accounts.filter {
             $0.account.matches(url) && SubmoduleAuth.authority($0.account.baseURL) == authority
         }
         let chosen: SubmoduleAccountSecret?
         if let selected = selectedAccounts[authority] { chosen = matches.first { $0.account.id == selected } }
         else { chosen = matches.first }
-        guard let chosen else { return .init() }
-        return .init(username: chosen.account.provider == .gitlab ? "oauth2" : chosen.account.username, secret: chosen.secret)
+        if let manual = overrides[authority], !manual.secret.isEmpty {
+            let typed = manual.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            let accountName = chosen.map { $0.account.provider == .gitlab ? "oauth2" : $0.account.username }
+            let name = typed.isEmpty ? (inherited[authority]?.username ?? accountName ?? URL(string: url)?.user ?? "") : typed
+            return .init(username: name, secret: manual.secret)
+        }
+        if let chosen {
+            return .init(username: chosen.account.provider == .gitlab ? "oauth2" : chosen.account.username, secret: chosen.secret)
+        }
+        // An explicit account choice must never silently become another identity.
+        if selectedAccounts[authority] != nil { return .init() }
+        if let saved = inherited[authority], !saved.secret.isEmpty { return saved }
+        return .init()
     }
 }
