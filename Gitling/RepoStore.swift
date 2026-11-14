@@ -26,6 +26,12 @@ final class RepoStore: ObservableObject {
     private var githubGeneration = 0
     private var remoteProjectsGeneration = 0
     private var reloadGeneration = 0
+    private var reloadCycle: ReloadCycle?
+    private let statusSummary: @Sendable (URL) -> RepoSummary?
+    private struct ReloadCycle {
+        var metadata: Task<[RepoSummary], Never>
+        var statuses: Task<Void, Never>
+    }
 
     struct GitHubPrompt: Equatable {
         var userCode: String
@@ -34,7 +40,9 @@ final class RepoStore: ObservableObject {
 
     var githubBusy: Bool { githubTask != nil && githubPrompt == nil }
 
-    init(root: URL? = nil, reloadOnStart: Bool = true) {
+    init(root: URL? = nil, reloadOnStart: Bool = true,
+         statusSummary: @escaping @Sendable (URL) -> RepoSummary? = { GitClient.summary(at: $0) }) {
+        self.statusSummary = statusSummary
         self.root = root ?? RepoStorage.repositoriesRoot()
         userName = UserDefaults.standard.string(forKey: Keys.name) ?? ""
         userEmail = UserDefaults.standard.string(forKey: Keys.email) ?? ""
@@ -47,55 +55,96 @@ final class RepoStore: ObservableObject {
                     await Task.detached { RepoStorage.migrateLegacyRepositoriesIfNeeded() }.value
                     if FileProviderRegistration.usesProviderLocation { FileProviderRegistration.register() }
                 }
-                await reload()
+                await reload(waitForStatus: false)
             }
         }
     }
 
-    func reload(repository name: String? = nil) async {
-        reloadGeneration += 1
-        let generation = reloadGeneration
-        let root = root
-        if let name {
-            let summary = await Task.detached { () -> RepoSummary? in
-                let url = root.appendingPathComponent(name)
-                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-                return GitClient.summary(at: url) ?? RepoSummary(
-                    name: name, branch: nil, isDirty: false, origin: nil, unavailable: true
-                )
-            }.value
-            guard generation == reloadGeneration else { return }
-            var updated = repos.filter { $0.name != name }
-            if let summary { updated.append(summary) }
-            updated.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            if repos != updated { repos = updated }
-            saveCachedRepos()
+    /// UI refresh waits only for branch metadata; expensive status scans publish
+    /// per row in the background. Callers performing writes can await completion.
+    func reload(repository name: String? = nil, waitForStatus: Bool = true) async {
+        if name == nil, let cycle = reloadCycle {
+            _ = await cycle.metadata.value
+            if waitForStatus { await cycle.statuses.value }
             return
         }
-        let quickNames = await Task.detached { GitClient.repositoryNames(root: root) }.value
-        guard generation == reloadGeneration else { return }
-        if !quickNames.isEmpty {
-            let existing = Dictionary(uniqueKeysWithValues: repos.map { ($0.name, $0) })
-            let quick = quickNames.map { name in
-                existing[name] ?? RepoSummary(
-                    name: name,
-                    branch: nil,
-                    isDirty: false,
-                    origin: nil,
-                    unavailable: false
-                )
+        reloadGeneration += 1
+        let generation = reloadGeneration
+        reloadCycle?.metadata.cancel(); reloadCycle?.statuses.cancel(); reloadCycle = nil
+        let root = root, reader = statusSummary
+        if let name {
+            let url = root.appendingPathComponent(name)
+            let metadata = await Task.detached { () -> RepoSummary? in
+                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+                return GitClient.summaryMetadata(at: url)
+            }.value
+            guard generation == reloadGeneration else { return }
+            replaceSummary(metadata, named: name)
+            let summary = metadata == nil ? nil : await Task.detached { reader(url) }.value
+            guard generation == reloadGeneration else { return }
+            if let summary { replaceSummary(summary, named: name) }
+            else if metadata != nil {
+                var unknown = metadata!; unknown.statusState = .unavailable
+                replaceSummary(unknown, named: name)
             }
-            if repos != quick { repos = quick }
+            saveCachedRepos()
+            resumePendingStatuses(generation: generation)
+            return
         }
-        let repos = await Task.detached { GitClient.list(root: root) }.value
-        // Pull-to-refresh can overlap with the scenePhase refresh. Only the latest
-        // result may touch the list, and an unchanged list must not be reassigned:
-        // doing so makes SwiftUI rebuild the rows and visibly flashes the section.
+        let metadata = Task.detached { () -> [RepoSummary] in
+            var summaries: [RepoSummary] = []
+            for name in GitClient.repositoryNames(root: root) {
+                if Task.isCancelled { break }
+                summaries.append(GitClient.summaryMetadata(at: root.appendingPathComponent(name)))
+            }
+            if !Task.isCancelled { await self.publishMetadata(summaries, generation: generation) }
+            return summaries
+        }
+        let statuses = readStatuses(metadata: metadata, generation: generation, root: root, reader: reader)
+        reloadCycle = ReloadCycle(metadata: metadata, statuses: statuses)
+        _ = await metadata.value
+        if waitForStatus { await statuses.value }
+    }
+
+    private func readStatuses(metadata: Task<[RepoSummary], Never>, generation: Int, root: URL,
+                              reader: @escaping @Sendable (URL) -> RepoSummary?) -> Task<Void, Never> {
+        return Task { @MainActor [weak self] in
+            let summaries = await metadata.value
+            guard let self, !Task.isCancelled, generation == self.reloadGeneration else { return }
+            for metadata in summaries where !metadata.unavailable && metadata.statusState == .checking {
+                guard !Task.isCancelled, generation == self.reloadGeneration else { return }
+                let url = root.appendingPathComponent(metadata.name)
+                let summary = await Task.detached { reader(url) }.value
+                guard !Task.isCancelled, generation == self.reloadGeneration else { return }
+                if let summary { self.replaceSummary(summary, named: metadata.name) }
+                else {
+                    var unknown = metadata; unknown.statusState = .unavailable
+                    self.replaceSummary(unknown, named: metadata.name)
+                }
+            }
+            self.saveCachedRepos()
+            self.reloadCycle = nil
+        }
+    }
+
+    private func resumePendingStatuses(generation: Int) {
+        let pending = repos.filter { !$0.unavailable && $0.statusState == .checking }
+        guard !pending.isEmpty else { return }
+        let metadata = Task.detached { pending }
+        let statuses = readStatuses(metadata: metadata, generation: generation, root: root, reader: statusSummary)
+        reloadCycle = ReloadCycle(metadata: metadata, statuses: statuses)
+    }
+
+    private func publishMetadata(_ summaries: [RepoSummary], generation: Int) {
         guard generation == reloadGeneration else { return }
-        if self.repos != repos {
-            self.repos = repos
-        }
-        saveCachedRepos()
+        if repos != summaries { repos = summaries }
+    }
+
+    private func replaceSummary(_ summary: RepoSummary?, named name: String) {
+        var updated = repos.filter { $0.name != name }
+        if let summary { updated.append(summary) }
+        updated.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        if repos != updated { repos = updated }
     }
 
     func saveIdentity() {
@@ -364,7 +413,11 @@ final class RepoStore: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: Keys.repoCache),
               let cached = try? JSONDecoder().decode(CachedRepos.self, from: data),
               cached.root == root.path else { return }
-        repos = cached.repos
+        repos = cached.repos.map { value in
+            var value = value
+            if !value.unavailable { value.statusState = .checking }
+            return value
+        }
     }
 
     private func saveCachedRepos() {

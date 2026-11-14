@@ -55,25 +55,6 @@ Duo 实际大字号检查发现原共享 UIKit diff 未跟随 SwiftUI 字号，�
 
 证据：`build/comparison-test-summary.json`、`build/comparison-performance.json`、`build/comparison-signatures.json`、`build/comparison-duo-fixture.json`、`build/comparison-duo-before.json`、`build/comparison-duo-verification.json`及各次 `.xcresult`。这些是本机产物，不作为永久证据库提交。
 
-## MCP 委派与父代理审查
-
-同一开发任务 `2576e9ef-6ffe-4053-9d30-ecc2b65ac636`：Cursor `5d1991ca-6934-4452-9cb2-68c8c9af6b6a` 在600秒超时，无最终补丁；用 `agent_handoff` 转到DeepSeek，生成显式交接摘要。之后同一conversation/原生SID六次 `agent_resume`，传递已应用代码变更及准确审查意见。
-
-| 轮次 | job ID | 产物 |
-| --- | --- | --- |
-| DeepSeek交接首轮 | `8e939e99-d3a5-4f0d-9ef7-bb87dc8de68e` | 模型与固定端点解析 |
-| 续接1 | `b1b4e00c-4ca8-49a9-b041-a9ea34a19ca0` | 提交树和单文件差异 |
-| 续接2 | `6b456519-c857-48be-bfb9-28727226cea9` | 选择器、比较页面及读取模型 |
-| 续接3 | `75dd073e-35c5-42f1-b1c6-acebfafc6d65` | 复核发现同 OID 选择/交换会清空有效结果 |
-| 续接4 | `bb66f4b0-69a6-4d19-912b-3fbe3fc94e87` | 根据Duo实际问题修复共享diff字号 |
-| 续接5 | `21a939f9-1206-4b05-9376-7664ee179e35` | 区分真正缺失与损坏/读取错误 |
-| 续接6 | `2a5d4054-8d9e-47d7-a71c-81c8351931ac` | 用纯内存 diff 消除当前属性/索引依赖 |
-
-代理仅返回补丁/审查文本，Codex检查范围、应用并独立测试。修正包括文件标识绑定两端、真正的字节预算、补丁行前缀、对象头预检查和读取错误分类、纯内存diff与C指针生命周期、缺失/超限优先级、私有访问级别、过期结果与解析竞争、同OID保留结果、页头高度和字体适配。代理报告没有被当作测试已通过的证据。
-
-只用允许的 `0ED9A62A-B9F4-4BC9-AA3B-0CF0B3D93F1E` 与 `D2A546B7-9C01-4668-B2EE-F13A1B9FC9D5`；保护原Duo，不创建/克隆/擦除/删除设备。代理本身没有运行测试或模拟器。本轮未授权commit/push，未执行。
-
-
 ## 跨运行时的测试产物签名
 
 实际严格签名检查发现：共用 `build/TestDerivedData` 从27.2切回18.6时，Xcode重建了裁剪后的 `Assets.car`，却未更新 `CodeResources`；文件哈希与旧QA签名一致，而与当前资源不同。不能把单纯测试成功当成最终可安装签名验收。

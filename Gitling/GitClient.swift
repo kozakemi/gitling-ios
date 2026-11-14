@@ -5,13 +5,16 @@ import Foundation
 import LinkerConfigurator
 import Security
 
-struct RepoSummary: Identifiable, Hashable, Codable {
+struct RepoSummary: Identifiable, Hashable, Codable, Sendable {
+    enum StatusState: String, Codable, Sendable { case checking, ready, unavailable }
     var id: String { name }
     var name: String
     var branch: String?
     var isDirty: Bool
     var origin: String?
     var unavailable: Bool
+    /// Nil accepts caches written before status readiness was tracked.
+    var statusState: StatusState? = nil
 }
 
 struct CommitInfo: Identifiable, Hashable, Codable, Sendable {
@@ -264,7 +267,7 @@ enum GitClient {
             }
             succeeded = true
             reporter.report(.largeFiles)
-            try smudgeLFS(at: destination, remoteURL: url, auth: lfsAuth)
+            try smudgeLFS(at: destination, remoteURL: url, auth: lfsAuth, progress: reporter)
         }
     }
 
@@ -590,7 +593,7 @@ enum GitClient {
             throw GitFailure.message(String(localized: "Could not pull"))
         }
         reporter.report(.largeFiles)
-        try smudgeLFS(at: repoURL, remoteURL: try transportURL(at: repoURL), auth: lfsAuth)
+        try smudgeLFS(at: repoURL, remoteURL: try transportURL(at: repoURL), auth: lfsAuth, progress: reporter)
         }
     }
 
@@ -1180,6 +1183,104 @@ enum GitClient {
         return try SearchWorktreeAccess.preview(root: root, path: relative)
     }
 
+    /// Read-only worktree preview. Text keeps the 256 KiB UTF-8 path. Images and PDFs are copied
+    /// into an app-private snapshot; the worktree file is never handed to a previewer.
+    /// A missing or rejected bookmark does not fall through to another directory.
+    static func previewWorktree(at repoURL: URL, path: String, budget: PreviewBudget = .standard, cache: PreviewCache = .shared, token: PreviewCancellation = PreviewCancellation(), progress: PreviewProgressRelay? = nil, whileReading: (@Sendable () -> Void)? = nil) throws -> PreviewLoadResult {
+        try token.check()
+        let access: WorktreeLink.Access?
+        do {
+            access = try WorktreeLink.beginForFileRestore(repoName: repoURL.lastPathComponent)
+        } catch {
+            return PreviewLoadResult(descriptor: PreviewDescriptor(source: .worktree(path), status: .accessDenied))
+        }
+        defer { access?.stop() }
+        let root: URL
+        do {
+            root = try SearchWorktreeAccess.root(access?.url ?? repoURL)
+        } catch {
+            return PreviewLoadResult(descriptor: PreviewDescriptor(source: .worktree(path), status: .missing))
+        }
+        return try WorkspacePreview.load(root: root, path: path, budget: budget, cache: cache, token: token, progress: progress, whileReading: whileReading)
+    }
+
+    /// A fixed commit/tree path, never the current index, refs or linked worktree.
+    static func previewRevision(at repoURL: URL, commit: String, path: String, budget: PreviewBudget = .standard,
+                                cache: PreviewCache = .shared, token: PreviewCancellation = PreviewCancellation(),
+                                progress: PreviewProgressRelay? = nil) throws -> PreviewLoadResult {
+        let source = PreviewSource.blob(oid: commit, path: path)
+        func result(_ status: PreviewStatus, bytes: Int64 = 0, target: String? = nil) -> PreviewLoadResult {
+            PreviewLoadResult(descriptor: .init(source: source, status: status, byteCount: bytes, recordedTarget: target))
+        }
+        try token.check()
+        guard commit.count == 40, commit.utf8.allSatisfy({ comparisonIsHexDigit($0) }),
+              let parts = try? SearchWorktreeAccess.components(path), !parts.isEmpty else { return result(.unreadable) }
+        _ = ready
+        let opened: OpenRepo
+        do { opened = try OpenRepo(path: repoURL.path, access: nil) }
+        catch { return result(.missingObject) }
+        defer { withExtendedLifetime(opened) {} }
+        var db: OpaquePointer?
+        guard git_repository_odb(&db, opened.repo) == 0 else { return result(.unreadable) }
+        defer { git_odb_free(db) }
+        var oid = git_oid(), size = 0, type = GIT_OBJECT_INVALID
+        guard git_oid_fromstr(&oid, commit) == 0 else { return result(.unreadable) }
+        let header = git_odb_read_header(&size, &type, db, &oid)
+        if header == GIT_ENOTFOUND.rawValue { return result(.missingObject) }
+        guard header == 0, type == GIT_OBJECT_COMMIT, size <= ComparisonLimits.standard.maximumMetadataBytes else { return result(.unreadable) }
+        let tree: OpaquePointer
+        do { tree = try comparisonTree(opened.repo, oid: commit, limit: ComparisonLimits.standard.maximumMetadataBytes) }
+        catch { return result(.unreadable) }
+        defer { git_tree_free(tree) }
+        try token.check()
+        let entry: IndexedFile?
+        do { entry = try indexedFile(tree, path) } catch { return result(.unreadable) }
+        guard let entry else { return result(.missing) }
+        if entry.type == GIT_OBJECT_TREE { return result(.directory) }
+        if entry.type == GIT_OBJECT_COMMIT { return result(.gitlink, target: format(entry.oid)) }
+        guard entry.type == GIT_OBJECT_BLOB else { return result(.unsupported) }
+        var blobOID = entry.oid
+        let blobHeader = git_odb_read_header(&size, &type, db, &blobOID)
+        if blobHeader == GIT_ENOTFOUND.rawValue { return result(.missingObject) }
+        guard blobHeader == 0, type == GIT_OBJECT_BLOB else { return result(.unreadable) }
+        guard size <= min(budget.fileBytes, PreviewBudget.standard.fileBytes) else {
+            return result(.tooLarge(limit: min(budget.fileBytes, PreviewBudget.standard.fileBytes)), bytes: Int64(size))
+        }
+        var blob: OpaquePointer?
+        guard git_blob_lookup(&blob, opened.repo, &blobOID) == 0, let blob else { return result(.unreadable) }
+        defer { git_blob_free(blob) }
+        guard git_blob_rawsize(blob) == size else { return result(.unreadable) }
+        if entry.mode == UInt32(GIT_FILEMODE_LINK.rawValue) {
+            guard size <= FileInspection.maximumBytes else { return result(.symlink, bytes: Int64(size)) }
+            let bytes = git_blob_rawcontent(blob).map { Data(bytes: $0, count: size) } ?? Data()
+            return result(.symlink, bytes: Int64(size), target: String(data: bytes, encoding: .utf8))
+        }
+        let reservation: PreviewCache.Reservation
+        do { reservation = try cache.reserve(bytes: Int64(size)) } catch { return result(.cacheFull) }
+        defer { cache.release(reservation.id) }
+        let ext = (path as NSString).pathExtension.lowercased()
+        let suffix = ext.count <= 32 && ext.utf8.allSatisfy({ (97...122).contains($0) || (48...57).contains($0) }) ? ext : "bin"
+        let file = reservation.directory.appendingPathComponent("content." + suffix)
+        guard FileManager.default.createFile(atPath: file.path, contents: nil, attributes: [.posixPermissions: 0o600]) else { return result(.unreadable) }
+        let output = try FileHandle(forWritingTo: file)
+        do {
+            defer { try? output.close() }
+            var offset = 0
+            while offset < size {
+                try token.check()
+                guard let content = git_blob_rawcontent(blob) else { return result(.unreadable) }
+                let count = min(65536, size - offset)
+                try output.write(contentsOf: Data(bytes: content.advanced(by: offset), count: count))
+                offset += count
+                progress?.update(copied: Int64(offset), total: Int64(size))
+            }
+        }
+        try token.check()
+        var loaded = try WorkspacePreview.load(root: reservation.directory, path: file.lastPathComponent, budget: budget, cache: cache, token: token, progress: progress)
+        loaded.descriptor.source = source
+        return loaded
+    }
+
     static func originURL(_ repoURL: URL) throws -> String {
         try locked {
             let opened = try open(repoURL)
@@ -1216,17 +1317,41 @@ enum GitClient {
         }
     }
 
+    /// Branch/origin metadata only: independent read-only handle, no linked
+    /// worktree access, status scan, LFS hashing, or global network/write lock.
+    static func summaryMetadata(at repoURL: URL) -> RepoSummary {
+        _ = ready
+        do {
+            let opened = try OpenRepo(path: repoURL.path, access: nil)
+            defer { withExtendedLifetime(opened) {} }
+            var remote: OpaquePointer?
+            var origin: String?
+            if git_remote_lookup(&remote, opened.repo, "origin") == 0, let remote {
+                origin = git_remote_url(remote).map { String(cString: $0) }
+                git_remote_free(remote)
+            }
+            return RepoSummary(name: repoURL.lastPathComponent, branch: headLabel(opened.repo), isDirty: false,
+                               origin: origin, unavailable: false, statusState: .checking)
+        } catch {
+            return RepoSummary(name: repoURL.lastPathComponent, branch: nil, isDirty: false, origin: nil, unavailable: true)
+        }
+    }
+
     static func summary(at repoURL: URL) -> RepoSummary? {
         try? summarize(at: repoURL)
     }
 
     private static func summarize(at url: URL) throws -> RepoSummary {
         try locked {
-            let opened = try open(url)
+            let access = try WorktreeLink.beginForFileRestore(repoName: url.lastPathComponent)
+            let opened: OpenRepo
+            do { opened = try OpenRepo(path: url.path, access: access) }
+            catch { access?.stop(); throw error }
             defer { withExtendedLifetime(opened) {} }
             let repo = opened.repo
             let branch = headLabel(repo)
-            let dirty = (try? statusUnlocked(repo).isEmpty) == false
+            let status = try? statusUnlocked(repo, summaryOnly: true)
+            let dirty = status?.isEmpty == false
             var remote: OpaquePointer?
             var origin: String?
             if git_remote_lookup(&remote, repo, "origin") == 0, let remote {
@@ -1238,7 +1363,8 @@ enum GitClient {
                 branch: branch,
                 isDirty: dirty,
                 origin: origin,
-                unavailable: false
+                unavailable: false,
+                statusState: status == nil ? .unavailable : .ready
             )
         }
     }
@@ -1456,17 +1582,15 @@ enum GitClient {
         URL(fileURLWithPath: String(cString: git_repository_path(repo)), isDirectory: true)
     }
 
-    private static func smudgeLFS(at repoURL: URL, remoteURL: String, auth: LFSAuth?) throws {
-        try locked {
+    private static func smudgeLFS(at repoURL: URL, remoteURL: String, auth: LFSAuth?, progress: GitProgressReporter) throws {
+        // The enclosing operation owns the repository write lock. Keep linked
+        // worktree access alive, but never hold the global Git lock during HTTP.
+        let context = try locked { () -> (OpenRepo, URL, URL) in
             let opened = try open(repoURL)
-            defer { withExtendedLifetime(opened) {} }
-            try LFSClient.smudge(
-                at: workDirectory(opened.repo),
-                gitDirectory: gitDirectory(opened.repo),
-                remoteURL: remoteURL,
-                auth: auth
-            )
+            return (opened, try workDirectory(opened.repo), gitDirectory(opened.repo))
         }
+        defer { withExtendedLifetime(context.0) {} }
+        try LFSClient.smudge(at: context.1, gitDirectory: context.2, remoteURL: remoteURL, auth: auth, progress: progress)
     }
 
     private static func applyLFSClean(
@@ -1536,13 +1660,15 @@ enum GitClient {
         return pointers
     }
 
-    private static func statusUnlocked(_ repo: OpaquePointer) throws -> [StatusEntry] {
+    private static func statusUnlocked(_ repo: OpaquePointer, summaryOnly: Bool = false) throws -> [StatusEntry] {
         var options = git_status_options()
         try check(git_status_options_init(&options, UInt32(GIT_STATUS_OPTIONS_VERSION)), String(localized: "Could not read status"))
         options.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED.rawValue
-            | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS.rawValue
-            | GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX.rawValue
-            | GIT_STATUS_OPT_RENAMES_INDEX_TO_WORKDIR.rawValue
+        if !summaryOnly {
+            options.flags |= GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS.rawValue
+                | GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX.rawValue
+                | GIT_STATUS_OPT_RENAMES_INDEX_TO_WORKDIR.rawValue
+        }
         var list: OpaquePointer?
         try check(git_status_list_new(&list, repo, &options), String(localized: "Could not read status"))
         defer { git_status_list_free(list) }

@@ -32,11 +32,13 @@ struct GitProgress: Sendable, Equatable {
     var completed: Int = 0
     var total: Int = 0
     var bytes: Int = 0
+    var byteTotal: Int = 0
     var submodule: String? = nil
 
     /// Each phase has its own denominator; there is no invented overall percent.
     var fraction: Double? {
-        total > 0 ? min(1, max(0, Double(completed) / Double(total))) : nil
+        if phase == .largeFiles, byteTotal > 0 { return min(1, max(0, Double(bytes) / Double(byteTotal))) }
+        return total > 0 ? min(1, max(0, Double(completed) / Double(total))) : nil
     }
     func countText(locale: Locale = .current) -> String? {
         guard total > 0 else { return nil }
@@ -51,8 +53,8 @@ struct GitProgress: Sendable, Equatable {
 struct GitProgressReporter: Sendable {
     let handler: GitProgressHandler?
     var submodule: String? = nil
-    func report(_ phase: GitProgress.Phase, completed: Int = 0, total: Int = 0, bytes: Int = 0) {
-        handler?(.init(phase: phase, completed: completed, total: total, bytes: bytes, submodule: submodule))
+    func report(_ phase: GitProgress.Phase, completed: Int = 0, total: Int = 0, bytes: Int = 0, byteTotal: Int = 0) {
+        handler?(.init(phase: phase, completed: completed, total: total, bytes: bytes, byteTotal: byteTotal, submodule: submodule))
     }
     func scoped(to path: String) -> Self { .init(handler: handler, submodule: path) }
 }

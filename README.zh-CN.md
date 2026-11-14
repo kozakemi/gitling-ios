@@ -15,7 +15,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 
 ## 进度与后续计划
 
-[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-12）。
+[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-14）。
 
 ## 功能
 
@@ -29,6 +29,10 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - Tag 列表、详情及安全检出，明确 detached HEAD 并保护未提交修改（[说明](docs/tags-and-diff-layout.md)）
 - 提交正文、作者/邮箱和 OID 的完整历史搜索，以及递归文件名/路径搜索，支持取消和分页（[说明](docs/repository-search.md)）
 - 文件历史、历史版本、工作区 Blame 与提交跳转，以及基础语法高亮（[说明](docs/file-inspection.md)）
+- 任意两个固定提交比较、变更文件列表及两端文件预览切换（[说明](docs/commit-comparison.md)）
+- 工作区与历史版本的只读图片、PDF、系统支持的 Office/RTF/iWork 文档及音视频预览，以及二进制十六进制分页和 ZIP 目录浏览（[说明](docs/file-preview-plan.md)）
+- Markdown 默认渲染，支持 GFM 表格、任务列表、脚注、提示块、代码高亮和仓库相对路径图片；远程图片点击提示后才加载，文本及源码提供可记忆的行号开关（[说明](docs/markdown-preview.md)）
+- Git 操作实时进度，包括 LFS 下载字节与百分比；首页先显示分支，再逐仓库后台更新状态（[说明](docs/lfs-progress-and-list-refresh.md)）
 - 支持 `feature/topic` 分支名、重命名，以及安全删除已合并分支
 - 设置或清除上游分支；Fetch/Push 可选择远程，默认同步跟随上游及其实际分支名
 
@@ -101,6 +105,10 @@ GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发�
 ./scripts/test.sh
 ```
 
+本机模拟器遵守 [AGENTS.md](AGENTS.md) 白名单；测试脚本使用已有设备并关闭并行克隆。CI 使用临时宿主已有设备。
+
+最近本机验证（2026-11-14）：iOS 18.6 与 Duo QA / iOS 27.2 各 **325/325 通过，0 失败、0 跳过**。通用 iOS Release 未签名构建、本地化及模拟器应用严格签名检查通过。模拟器验证不替代真机和第三方文件提供方验收。
+
 本地化覆盖检查：
 
 ```sh
@@ -117,7 +125,7 @@ GitlingTests/            XCTest 单元测试
 Vendor/static-libgit2/   libgit2 静态 xcframework 与本地 Swift Package
 Vendor/libssh2/          libssh2/OpenSSL 静态库与许可证
 scripts/                 构建、IPA、本地化检查脚本
-docs/                    截图
+docs/                    功能说明、验证记录、路线图和截图
 ```
 
 ## 账户与凭据
@@ -140,22 +148,24 @@ docs/                    截图
 
 - SSH 私钥只支持导入，暂不支持在 App 内生成或导出；口令保存在 Keychain。
 - SSH 主机密钥采用首次信任（TOFU）。主机密钥变化会拒绝连接，但暂未提供 known_hosts 管理界面。
-- Git LFS 支持指针下载/检出，以及 LFS 跟踪文件的 clean/upload；暂不支持 LFS lock 命令和独立的进度界面。
+- Git LFS 支持指针下载/检出、clean/upload 及实时下载进度；暂不支持 LFS lock、断点续传和磁盘缓冲下载。
+- 文本预览限 256 KiB，历史 blob 和普通预览文件限 32 MiB；这些预算不是解码峰值内存的硬保证。GIF 只显示首帧，加密 PDF 不解锁，SVG/HTML 保留源码，ZIP 不解压。
+- Markdown 尚未覆盖所有 GitHub 扩展：数学公式、Mermaid 和完整 emoji 短码暂不渲染。仓库图片读取工作区或同一固定提交，拒绝越界和符号链接，不自动下载 LFS 指针。
 - 支持 HTTP 以兼容本地或旧服务器。HTTP 会明文传输凭据和数据，能用 HTTPS 时请优先使用 HTTPS。
 - 不支持交互式 rebase 和自定义 merge driver。
 - 超过 256 KB 的文件在提交差异中按二进制处理，避免界面卡死。
 - GPLv3 与 App Store 分发条款存在兼容性争议。若要上架 App Store，建议先完成许可证审计，并考虑双许可证或 App Store 例外；这不是法律意见。
 - 本项目是非官方客户端，使用前请自行确认名称、图标和商标的使用权限。
 
-## 开发说明
-
-本项目在开发过程中使用了 **Grok** 和 **DeepSeek** 作为 AI 编程助手，用于代码生成、重构建议、测试和文档编写。所有提交由维护者审查后合入。
-
 ## 第三方许可证
 
 - [libgit2](https://libgit2.org/)：GPL-2.0 with Linking Exception
 - [libssh2](https://www.libssh2.org/)：BSD-3-Clause，见 `Vendor/libssh2/LICENSE-libssh2`
 - [OpenSSL](https://www.openssl.org/)：Apache-2.0，见 `Vendor/libssh2/LICENSE-OpenSSL`
+- [Marked](https://github.com/markedjs/marked)：MIT，[许可证](Gitling/MarkdownAssets/MARKED-LICENSE.txt)
+- [marked-footnote](https://github.com/bent10/marked-extensions)：MIT，[许可证](Gitling/MarkdownAssets/MARKED-FOOTNOTE-LICENSE.txt)
+
+Markdown 解析器版本、来源及校验值见 [MarkdownAssets/NOTICE.txt](Gitling/MarkdownAssets/NOTICE.txt)。解析器随应用打包，可离线使用，预览时不会从 CDN 下载脚本。
 
 ## 许可证
 

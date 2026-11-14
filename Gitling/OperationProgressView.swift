@@ -24,9 +24,8 @@ struct OperationProgressCard: View {
             if let counts = state.progress.countText(locale: locale) {
                 Text(counts).font(.caption.monospacedDigit())
             }
-            if state.progress.bytes > 0 {
-                Text(String(format: String(localized: "Transferred: %@", locale: locale),
-                            ByteCountFormatter.string(fromByteCount: Int64(state.progress.bytes), countStyle: .file)))
+            if state.progress.bytes > 0 || state.progress.byteTotal > 0 {
+                Text(transferText)
                     .font(.caption.monospacedDigit())
             }
             TimelineView(.periodic(from: state.startedAt, by: 1)) { context in
@@ -39,6 +38,14 @@ struct OperationProgressCard: View {
         .padding(16)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("operation.progress")
+    }
+    private var transferText: String {
+        let bytes = ByteCountFormatter.string(fromByteCount: Int64(state.progress.bytes), countStyle: .file)
+        if state.progress.byteTotal > 0 {
+            return String(format: String(localized: "Transferred: %@ of %@", locale: locale), bytes,
+                          ByteCountFormatter.string(fromByteCount: Int64(state.progress.byteTotal), countStyle: .file))
+        }
+        return String(format: String(localized: "Transferred: %@", locale: locale), bytes)
     }
 }
 

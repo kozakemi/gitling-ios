@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Clibgit2
+import CryptoKit
 @testable import Gitling
 
 /// A loopback-only smart HTTP fixture. It serves real libgit2-generated packs;
@@ -37,6 +38,8 @@ final class SubmoduleHTTPServer {
     private let listener: NWListener
     private var repositories: [String: Repository] = [:]
     private var connections: [NWConnection] = []
+    private struct LFSObject { var data: Data; var oid: String; var chunkSize: Int; var delay: Int }
+    private var lfsObjects: [String: LFSObject] = [:]
     private var accepted = 0
     private var rejected = 0
     private(set) var port: UInt16 = 0
@@ -68,6 +71,13 @@ final class SubmoduleHTTPServer {
 
     func serve(_ repository: Repository, path: String = "/fixed_unit_queue.git") {
         queue.sync { repositories[path] = repository }
+    }
+
+    func serveLFS(_ data: Data, path: String = "/fixed_unit_queue.git", chunkSize: Int = 32_768, delayMilliseconds: Int = 10) {
+        queue.sync {
+            lfsObjects[path] = LFSObject(data: data, oid: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+                                        chunkSize: chunkSize, delay: delayMilliseconds)
+        }
     }
 
     func stop() {
@@ -102,6 +112,30 @@ final class SubmoduleHTTPServer {
         let request = lines[0].split(separator: " ")
         guard request.count >= 2 else { connection.cancel(); return }
         let method = String(request[0]), path = String(request[1]).components(separatedBy: "?")[0]
+        let lfsSuffix = "/info/lfs/objects/batch"
+        if method == "POST", path.hasSuffix(lfsSuffix),
+           let object = lfsObjects[String(path.dropLast(lfsSuffix.count))],
+           let repository = repositories[String(path.dropLast(lfsSuffix.count))] {
+            let authorization = lines.first { $0.lowercased().hasPrefix("authorization:") }
+                .map { String($0.dropFirst("authorization:".count)).trimmingCharacters(in: .whitespaces) }
+            guard authorization == repository.authorization else {
+                send(connection, status: "401 Unauthorized", type: "text/plain", body: Data()); return
+            }
+            let body = try! JSONSerialization.data(withJSONObject: ["objects": [["oid": object.oid, "size": object.data.count,
+                "actions": ["download": ["href": authority + "/lfs-fixture/" + object.oid,
+                                         "header": ["Authorization": repository.authorization]]]]]])
+            send(connection, status: "200 OK", type: "application/vnd.git-lfs+json", body: body); return
+        }
+        if method == "GET", path.hasPrefix("/lfs-fixture/"),
+           let entry = lfsObjects.first(where: { path.hasSuffix($0.value.oid) }), let repository = repositories[entry.key] {
+            let authorization = lines.first { $0.lowercased().hasPrefix("authorization:") }
+                .map { String($0.dropFirst("authorization:".count)).trimmingCharacters(in: .whitespaces) }
+            guard authorization == repository.authorization else { send(connection, status: "401 Unauthorized", type: "text/plain", body: Data()); return }
+            let object = entry.value
+            let header = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: \(object.data.count)\r\nConnection: close\r\n\r\n"
+            connection.send(content: Data(header.utf8), completion: .contentProcessed { [weak self] _ in self?.sendLFS(connection, object: object, offset: 0) })
+            return
+        }
         let suffix = method == "GET" ? "/info/refs" : "/git-upload-pack"
         guard path.hasSuffix(suffix), let repo = repositories[String(path.dropLast(suffix.count))] else {
             send(connection, status: "404 Not Found", type: "text/plain", body: Data()); return
@@ -124,6 +158,18 @@ final class SubmoduleHTTPServer {
             send(connection, status: "200 OK", type: "application/x-git-upload-pack-result",
                  body: packet("NAK\n") + repo.pack)
         }
+    }
+
+    private func sendLFS(_ connection: NWConnection, object: LFSObject, offset: Int) {
+        let end = min(object.data.count, offset + object.chunkSize)
+        let final = end == object.data.count
+        connection.send(content: object.data.subdata(in: offset..<end), contentContext: final ? .finalMessage : .defaultMessage,
+                        isComplete: true, completion: .contentProcessed { [weak self] error in
+            guard let self, error == nil, !final else { return }
+            self.queue.asyncAfter(deadline: .now() + .milliseconds(object.delay)) {
+                self.sendLFS(connection, object: object, offset: end)
+            }
+        })
     }
 
     private func packet(_ string: String) -> Data {

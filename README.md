@@ -20,7 +20,7 @@ so other editors can modify files.
 
 ## Progress and roadmap
 
-[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-12.
+[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-14.
 
 ## Features
 
@@ -34,6 +34,10 @@ so other editors can modify files.
 - Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection ([details](docs/tags-and-diff-layout.md))
 - Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination ([details](docs/repository-search.md))
 - File history, historical versions, worktree blame with commit navigation, and basic syntax highlighting ([details](docs/file-inspection.md))
+- Compare any two fixed commits, browse changed files, and switch between their file previews ([details](docs/commit-comparison.md))
+- Read-only worktree and historical previews for images, PDF, system-supported Office/RTF/iWork documents, and audio/video; binary hex paging and ZIP directory listings ([details](docs/file-preview-plan.md))
+- Markdown opens rendered by default, with GFM tables, task lists, footnotes, alerts, code highlighting, and repository-relative images. Remote images load only after tapping the prompt; text and source previews have a persistent line-number toggle ([details](docs/markdown-preview.md))
+- Live Git operation progress, including LFS download bytes and percentages. The home screen shows branch metadata first and refreshes status per repository in the background ([details](docs/lfs-progress-and-list-refresh.md))
 - Support `feature/topic` branch names, branch renaming, and safe deletion of merged branches
 - Set or clear upstream branches; select a remote for Fetch/Push, with default sync following the upstream remote and branch name
 
@@ -112,6 +116,15 @@ You can also build it manually first:
 ./scripts/test.sh
 ```
 
+Local simulator destinations follow [AGENTS.md](AGENTS.md); the script uses existing
+allowlisted devices and disables parallel simulator cloning. CI uses an existing
+device on its temporary host.
+
+Latest local validation (2026-11-14): **325/325 tests passed on each of iOS 18.6 and
+Duo QA / iOS 27.2, with no failures or skips**. The unsigned generic iOS Release
+build, localization checks, and strict simulator app signatures also passed.
+Simulator checks do not replace physical-device or third-party file-provider acceptance.
+
 Localization coverage check:
 
 ```sh
@@ -128,7 +141,7 @@ GitlingTests/            XCTest unit tests
 Vendor/static-libgit2/   libgit2 static xcframework and local Swift Package
 Vendor/libssh2/          Prebuilt libssh2/OpenSSL static libraries and licenses
 scripts/                 Build, IPA, and localization scripts
-docs/                    Screenshots
+docs/                    Feature notes, validation, roadmap, and screenshots
 ```
 
 ## Accounts and credentials
@@ -152,7 +165,9 @@ docs/                    Screenshots
 
 - SSH keys are imported, not generated or exported. The passphrase is stored in the Keychain.
 - SSH host keys use trust-on-first-use. A changed host key is rejected; there is no known-hosts management UI yet.
-- Git LFS supports pointer download/checkout and clean/upload for LFS-tracked files. LFS lock commands and a dedicated progress UI are not implemented.
+- Git LFS supports pointer download/checkout, clean/upload, and live download progress. LFS locking, resumable transfers, and disk-backed download buffering are not implemented.
+- Text previews retain a 256 KiB budget; historical blobs and ordinary preview files are limited to 32 MiB. These limits are not hard decoder-memory guarantees. GIF previews use the first frame; encrypted PDFs are not unlocked, SVG/HTML remain source text, and ZIP contents are not extracted.
+- Markdown does not support every GitHub extension: math, Mermaid, and complete emoji shortcodes are not rendered. Repository images follow the worktree or the same fixed commit; path escapes and symlinks are rejected, and LFS pointers are not downloaded automatically.
 - HTTP is supported for compatibility with local or legacy servers. It sends credentials and data in clear text; use HTTPS whenever possible.
 - Interactive rebase and custom merge drivers are not supported.
 - Commit diffs treat files larger than 256 KB as binary to keep the UI responsive.
@@ -162,17 +177,17 @@ docs/                    Screenshots
 - This is an unofficial client. Verify the use of the project name, icon, and
   trademarks before distributing.
 
-## Development notes
-
-This project was developed with **Grok** and **DeepSeek** as AI coding assistants
-for code generation, refactoring suggestions, tests, and documentation. All commits
-are reviewed by the maintainer before they are merged.
-
 ## Third-party licenses
 
 - [libgit2](https://libgit2.org/) — GPL-2.0 with Linking Exception
 - [libssh2](https://www.libssh2.org/) — BSD-3-Clause; see `Vendor/libssh2/LICENSE-libssh2`
 - [OpenSSL](https://www.openssl.org/) — Apache-2.0; see `Vendor/libssh2/LICENSE-OpenSSL`
+- [Marked](https://github.com/markedjs/marked) — MIT; [license](Gitling/MarkdownAssets/MARKED-LICENSE.txt)
+- [marked-footnote](https://github.com/bent10/marked-extensions) — MIT; [license](Gitling/MarkdownAssets/MARKED-FOOTNOTE-LICENSE.txt)
+
+Markdown parser versions, source URLs, and checksums are recorded in
+[MarkdownAssets/NOTICE.txt](Gitling/MarkdownAssets/NOTICE.txt). The parsers are bundled
+for offline use; the preview does not download scripts from a CDN.
 
 ## License
 

@@ -1,0 +1,73 @@
+// Local-only renderer. Never evaluate repository JavaScript or emit arbitrary HTML attributes.
+function gitlingMarkdown(source, imagesAllowed) {
+  let remoteImages = 0;
+  const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const parser = new marked.Marked({ gfm: true, breaks: false, pedantic: false });
+  function image(src, alt) {
+    const url = gitlingRemoteURL(src);
+    if (!url) {
+      const local = gitlingLocalImageURL(src);
+      if (local) return '<img src="' + esc(local) + '" alt="' + esc(alt || '') + '" loading="lazy">';
+      return '<span class="image-placeholder">▧ ' + esc(alt || 'Image') + '</span>';
+    }
+    remoteImages++;
+    if (!imagesAllowed) return '<span class="image-placeholder">▧ ' + esc(alt || 'Image') + '</span>';
+    return '<img src="' + esc(url) + '" alt="' + esc(alt || '') + '" loading="lazy" referrerpolicy="no-referrer">';
+  }
+  function safeHTML(raw) {
+    // Drop active content, including its body. The remaining text is never fed to an HTML parser unsanitized.
+    raw = raw.replace(/<!--[^]*?-->/g, '').replace(/<(script|style|iframe|object|embed|form|svg|math)\b[^>]*>[^]*?<\/\1\s*>/gi, '');
+    const allowed = new Set(['br','hr','kbd','sup','sub','del','ins','details','summary','p','div','span','b','i','strong','em','s','u','pre','code','blockquote','ul','ol','li','table','thead','tbody','tr','th','td']);
+    let out = '', last = 0;
+    const tags = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi;
+    for (const match of raw.matchAll(tags)) {
+      out += esc(raw.slice(last, match.index));
+      const tag = match[1].toLowerCase(), closing = match[0].startsWith('</');
+      function attr(name) {
+        const found = match[0].match(new RegExp('(?:\\s)' + name + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))','i'));
+        const value = found ? (found[1] ?? found[2] ?? found[3] ?? '') : '';
+        return value.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|quot|apos|lt|gt);/gi, (raw, entity) => {
+          if (entity[0] !== '#') return ({amp:'&', quot:'"', apos:"'", lt:'<', gt:'>'})[entity.toLowerCase()];
+          const point = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2),16) : parseInt(entity.slice(1),10);
+          return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : '\ufffd';
+        });
+      }
+      if (tag === 'img' && !closing) out += image(attr('src'), attr('alt'));
+      else if (allowed.has(tag)) {
+        let attribute = '';
+        if (!closing && ['p','div','th','td'].includes(tag) && /^(left|center|right)$/i.test(attr('align'))) attribute = ' class="align-' + attr('align').toLowerCase() + '"';
+        if (!closing && tag === 'details' && /\sopen(?:\s|>|=)/i.test(match[0])) attribute = ' open';
+        out += '<' + (closing ? '/' : '') + tag + attribute + '>';
+      }
+      last = match.index + match[0].length;
+    }
+    return out + esc(raw.slice(last));
+  }
+  parser.use(markedFootnote({ prefixId: 'gitling-footnote-', backRefLabel: 'Back to reference' }));
+  parser.use({ renderer: {
+    html(token) { return safeHTML(token.text); },
+    image(token) { return image(token.href, token.text); },
+    link(token) {
+      // Links are styled but do not navigate to remote pages or repository files.
+      return '<span class="markdown-link">' + this.parser.parseInline(token.tokens) + '</span>';
+    },
+    blockquote(token) {
+      const match = token.text.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\n|$)/);
+      if (match) {
+        // Reuse the original token tree: lexing again would reset the footnote
+        // extension's per-document state and lose definitions outside this quote.
+        let content = this.parser.parse(token.tokens);
+        content = content.replace(/^<p>\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]<\/p>\n?/, '').replace(/^<p>\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\n?/, '<p>');
+        return '<div class="markdown-alert alert-' + match[1].toLowerCase() + '"><p class="alert-title">' + match[1] + '</p>' + content + '</div>';
+      }
+      return '<blockquote>' + this.parser.parse(token.tokens) + '</blockquote>';
+    },
+    code(token) {
+      const language = (token.lang || '').split(/\s+/)[0];
+      return '<div class="code-block">' + (language ? '<div class="code-language">' + esc(language) + '</div>' : '') + '<pre><code>' + gitlingHighlight(token.text, language) + '</code></pre></div>';
+    },
+    table(token) { return '<div class="table-scroll">' + marked.Renderer.prototype.table.call(this, token) + '</div>'; }
+  }});
+  const body = parser.parse(source);
+  return { body: body, remoteImages: remoteImages };
+}
