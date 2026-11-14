@@ -44,7 +44,7 @@ struct FilePreview: View {
         } content: {
             switch section {
             case .contents:
-                FileContentsPage(repo: repo, relative: relative)
+                PreviewContentsPage(repo: repo, source: .worktree(relative))
             case .history:
                 FileHistoryList(repo: repo, path: relative, revision: store.revision)
             case .blame:
@@ -57,43 +57,103 @@ struct FilePreview: View {
     }
 }
 
-private struct FileContentsPage: View {
+struct PreviewContentsPage: View {
     let repo: URL
-    let relative: String
-    @State private var text: String?
-    @State private var spans: [SyntaxSpan] = []
-    @State private var error: String?
+    let source: PreviewSource
+    @StateObject private var model = WorkspacePreviewModel()
 
     var body: some View {
         Group {
-            if let text {
-                SourceTextView(text: text, spans: spans)
-            } else if let error {
-                ContentUnavailableView("Files", systemImage: "doc", description: Text(error))
-            } else {
+            switch model.phase {
+            case .loading:
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .copying(let progress):
+                VStack(spacing: 12) {
+                    ProgressView(value: Double(progress.copied), total: Double(max(progress.total, 1)))
+                    Text("Copying preview…")
+                    Text(PreviewLabels.copying(progress))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .accessibilityIdentifier("file.preview.progress")
+            case .text(let state):
+                PreviewTextPage(state: state, markdownMode: $model.markdownMode, localContext: .init(repo: repo, source: source)) { encoding in
+                    model.choose(encoding)
+                }
+                .id(PreviewRequestKey(repo: repo, source: source))
+            case .image(let data, let caption):
+                if let image = UIImage(data: data) {
+                    VStack(spacing: 0) {
+                        WorkspaceImagePreview(image: image)
+                        Text(caption)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .accessibilityIdentifier("file.preview.caption")
+                    }
+                } else {
+                    ContentUnavailableView("Files", systemImage: "photo", description: Text("This image is damaged and could not be decoded."))
+                        .accessibilityIdentifier("file.preview.notice")
+                }
+            case .pdf(let url, let caption):
+                VStack(spacing: 0) {
+                    WorkspacePDFPreview(url: url)
+                    Text(caption)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .accessibilityIdentifier("file.preview.caption")
+                }
+            case .quickLook(let url, let caption):
+                VStack(spacing: 0) {
+                    WorkspaceQuickLookPreview(url: url)
+                    Text(caption)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .accessibilityIdentifier("file.preview.caption")
+                }
+            case .player(let url, let caption):
+                VStack(spacing: 0) {
+                    WorkspacePlayerPreview(url: url)
+                    Text(caption)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .accessibilityIdentifier("file.preview.caption")
+                }
+            case .archive(let index):
+                PreviewArchiveList(index: index)
+            case .hex(let page, let loading):
+                PreviewHexView(page: page, loading: loading) { direction in
+                    Task { await model.moveHexPage(direction) }
+                }
+            case .notice(let message):
+                ContentUnavailableView("Files", systemImage: "doc", description: Text(message))
+                    .accessibilityIdentifier("file.preview.notice")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .task {
-            do {
-                let repo = repo
-                let relative = relative
-                let loaded = try await Task.detached(priority: .userInitiated) {
-                    try GitClient.readText(at: repo, relative: relative)
-                }.value
-                let highlighted = await Task.detached(priority: .userInitiated) {
-                    SyntaxHighlighter.spans(in: loaded, path: relative)
-                }.value
-                guard !Task.isCancelled else { return }
-                text = loaded
-                spans = highlighted
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.error = error.localizedDescription
-            }
+        .task(id: PreviewRequestKey(repo: repo, source: source)) {
+            await model.load(repo: repo, source: source)
         }
+        .onDisappear { model.cancel() }
     }
+}
+
+private struct PreviewRequestKey: Hashable {
+    let repo: URL
+    let source: PreviewSource
 }
 
 private struct FileHistoryList: View {
@@ -159,89 +219,23 @@ private struct FileHistoryList: View {
 private struct FileRevisionPage: View {
     let repo: URL
     let entry: FileHistoryEntry
-    @State private var state: FileBlobState?
-    @State private var spans: [SyntaxSpan] = []
-    @State private var error: String?
-
     var body: some View {
-        DiffPanelLayout {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.commit.summary).font(.headline)
-                Text(FileInspectionLabels.change(entry))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(String(entry.commit.id.prefix(12)))
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
-        } content: {
-            if let error {
-                ContentUnavailableView("Files", systemImage: "doc", description: Text(error))
-            } else if let state {
-                revisionBody(state)
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        GeometryReader { geometry in
+            DiffPanelLayout {
+                ComparisonHeaderViewport(maximumHeight: max(100, min(240, geometry.size.height * 0.35))) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(entry.commit.summary).font(.headline)
+                        Text(FileInspectionLabels.change(entry)).font(.caption)
+                        Text(entry.commit.id).font(.caption.monospaced()).textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                }
+            } content: {
+                PreviewContentsPage(repo: repo, source: .blob(oid: entry.commit.id, path: entry.path))
             }
         }
         .navigationTitle((entry.path as NSString).lastPathComponent)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: entry.id + "\n" + entry.path) {
-            do {
-                let repo = repo
-                let commit = entry.commit.id
-                let path = entry.path
-                let loaded = try await Task.detached(priority: .userInitiated) {
-                    try GitClient.fileRevision(at: repo, commit: commit, path: path)
-                }.value
-                let highlighted: [SyntaxSpan]
-                if case .text(let text) = loaded {
-                    highlighted = await Task.detached(priority: .userInitiated) {
-                        SyntaxHighlighter.spans(in: text, path: path)
-                    }.value
-                } else {
-                    highlighted = []
-                }
-                guard !Task.isCancelled else { return }
-                state = loaded
-                spans = highlighted
-                error = nil
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.error = error.localizedDescription
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func revisionBody(_ state: FileBlobState) -> some View {
-        switch state {
-        case .text(let text):
-            SourceTextView(text: text, spans: spans)
-        case .missing:
-            Text("This commit does not contain this file.").padding()
-        case .binary:
-            Text("This version is binary.").padding()
-        case .tooLarge:
-            Text("This version is too large to show.").padding()
-        case .notUTF8:
-            Text("This version is not UTF-8 text.").padding()
-        case .symlink(let target):
-            VStack(alignment: .leading, spacing: 8) {
-                Text("This version is a symbolic link and was not followed.")
-                Text(target).font(.body.monospaced())
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-        case .gitlink:
-            Text("This version is a submodule.").padding()
-        case .directory:
-            Text("This version is a directory.").padding()
-        case .missingObject:
-            Text("The object for this version is missing.").padding()
-        }
     }
 }
 
@@ -343,12 +337,13 @@ enum FileInspectionLabels {
     }
 }
 
-private struct SourceTextView: UIViewRepresentable {
+struct SourceTextView: UIViewRepresentable {
     let text: String
     let spans: [SyntaxSpan]
+    var lineNumbers = false
 
-    func makeUIView(context: Context) -> UITextView {
-        let view = UITextView()
+    func makeUIView(context: Context) -> NumberedSourceTextView {
+        let view = NumberedSourceTextView()
         view.isEditable = false
         view.isSelectable = true
         view.backgroundColor = .clear
@@ -356,12 +351,14 @@ private struct SourceTextView: UIViewRepresentable {
         view.textContainer.lineFragmentPadding = 0
         view.alwaysBounceVertical = true
         view.attributedText = attributed(font: font)
+        view.configureLineNumbers(lineNumbers, pointSize: font.pointSize)
         return view
     }
 
-    func updateUIView(_ view: UITextView, context: Context) {
+    func updateUIView(_ view: NumberedSourceTextView, context: Context) {
         let next = attributed(font: font)
         if view.attributedText != next { view.attributedText = next }
+        view.configureLineNumbers(lineNumbers, pointSize: font.pointSize)
     }
 
     private var font: UIFont {

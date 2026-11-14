@@ -11,3 +11,8 @@ xcuserdata/
 *.dSYM.zip
 Vendor/src/
 Vendor/build/
+
+# Local agent tooling notes and machine maintenance records
+/docs/tooling/
+/docs/tasks/
+/docs/simulator-policy.md

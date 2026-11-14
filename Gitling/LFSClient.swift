@@ -123,7 +123,7 @@ enum LFSClient {
         return LFSPointer.parse(text)
     }
 
-    static func smudge(at repoURL: URL, gitDirectory: URL? = nil, remoteURL: String, auth: LFSAuth?, session: URLSession = .shared) throws {
+    static func smudge(at repoURL: URL, gitDirectory: URL? = nil, remoteURL: String, auth: LFSAuth?, session: URLSession = .shared, progress: GitProgressReporter = .init(handler: nil)) throws {
         let pointers = try pointerFiles(at: repoURL)
         guard !pointers.isEmpty else { return }
         var unique: [String: LFSPointer] = [:]
@@ -134,9 +134,12 @@ enum LFSClient {
             Array(unique.values),
             remoteURL: remoteURL,
             auth: auth,
-            session: session
+            session: session,
+            progress: progress
         )
-        for (path, pointer) in pointers {
+        progress.report(.checkingOut, total: pointers.count)
+        var written = 0
+        for (path, pointer) in pointers.sorted(by: { $0.key < $1.key }) {
             guard let data = objects[pointer.oid] else { continue }
             if data.count != pointer.size {
                 throw LFSError.invalidObject
@@ -147,6 +150,8 @@ enum LFSClient {
                 withIntermediateDirectories: true
             )
             try data.write(to: destination, options: .atomic)
+            written += 1
+            progress.report(.checkingOut, completed: written, total: pointers.count)
         }
         try saveManifest(pointers, at: repoURL, gitDirectory: gitDirectory)
     }
@@ -286,33 +291,96 @@ enum LFSClient {
     }
 
     private static func downloadObjects(
-        _ pointers: [LFSPointer],
-        remoteURL: String,
-        auth: LFSAuth?,
-        session: URLSession
+        _ pointers: [LFSPointer], remoteURL: String, auth: LFSAuth?, session: URLSession,
+        progress: GitProgressReporter
     ) throws -> [String: Data] {
+        let expected = Dictionary(uniqueKeysWithValues: pointers.map { ($0.oid, $0.size) })
+        var totalBytes = 0
+        for pointer in pointers {
+            let sum = totalBytes.addingReportingOverflow(pointer.size)
+            guard !sum.overflow else { throw LFSError.invalidObject }
+            totalBytes = sum.partialValue
+        }
+        progress.report(.largeFiles, total: pointers.count, byteTotal: totalBytes)
         let endpoint = try endpoint(remoteURL: remoteURL, instanceBaseURL: auth?.instanceBaseURL)
         let response = try batch(operation: "download", pointers: pointers, endpoint: endpoint, auth: auth, session: session)
+        guard response.objects.count == pointers.count,
+              Set(response.objects.map(\.oid)) == Set(expected.keys) else { throw LFSError.missingObject }
         var result: [String: Data] = [:]
+        var completedBytes = 0
         for object in response.objects {
-            if object.error != nil {
-                throw LFSError.server
-            }
-            guard let action = object.actions?["download"],
-                  let url = URL(string: action.href) else {
-                throw LFSError.missingObject
-            }
+            if object.error != nil { throw LFSError.server }
+            guard let size = expected[object.oid], size == object.size else { throw LFSError.invalidObject }
+            guard let action = object.actions?["download"], let url = URL(string: action.href) else { throw LFSError.missingObject }
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("Gitling", forHTTPHeaderField: "User-Agent")
-            for (key, value) in action.header ?? [:] {
-                request.setValue(value, forHTTPHeaderField: key)
+            for (key, value) in action.header ?? [:] { request.setValue(value, forHTTPHeaderField: key) }
+            let base = completedBytes, completed = result.count, total = pointers.count, byteTotal = totalBytes
+            let data = try streamingData(for: request, session: session, maximumBytes: size) { received in
+                progress.report(.largeFiles, completed: completed, total: total, bytes: base + received, byteTotal: byteTotal)
             }
-            let data = try data(for: request, session: session)
-            guard sha256(data) == object.oid else { throw LFSError.invalidObject }
+            guard data.count == size, sha256(data) == object.oid else { throw LFSError.invalidObject }
             result[object.oid] = data
+            completedBytes += data.count
+            progress.report(.largeFiles, completed: result.count, total: total, bytes: completedBytes, byteTotal: totalBytes)
         }
         return result
+    }
+
+    /// Per-task delegates preserve the caller's session configuration (including
+    /// test protocols) and report bytes as they arrive, rather than after completion.
+    private static func streamingData(for request: URLRequest, session: URLSession, maximumBytes: Int,
+                                      received: @escaping @Sendable (Int) -> Void) throws -> Data {
+        let delegate = DownloadDelegate(maximumBytes: maximumBytes, received: received)
+        let task = session.dataTask(with: request)
+        task.delegate = delegate
+        task.resume()
+        delegate.done.wait()
+        do { return try delegate.value().get() }
+        catch let error as LFSError { throw error }
+        catch { throw LFSError.server }
+    }
+
+    private final class DownloadDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        let done = DispatchSemaphore(value: 0)
+        private let lock = NSLock()
+        private let maximumBytes: Int
+        private let received: @Sendable (Int) -> Void
+        private var bytes = Data()
+        private var failure: Error?
+        private var result: Result<Data, Error>?
+        init(maximumBytes: Int, received: @escaping @Sendable (Int) -> Void) {
+            self.maximumBytes = maximumBytes; self.received = received
+        }
+        func value() -> Result<Data, Error> { lock.withLock { result ?? .failure(LFSError.server) } }
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+            let error: LFSError?
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 { error = .unauthorized }
+                else if !(200..<300).contains(http.statusCode) { error = .server }
+                else if response.expectedContentLength > Int64(maximumBytes) { error = .invalidObject }
+                else { error = nil }
+            } else { error = .server }
+            lock.withLock { failure = error }
+            completionHandler(error == nil ? .allow : .cancel)
+        }
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            let count: Int? = lock.withLock {
+                guard failure == nil, result == nil else { return nil }
+                guard data.count <= maximumBytes - bytes.count else { failure = LFSError.invalidObject; return nil }
+                bytes.append(data); return bytes.count
+            }
+            if let count { received(count) } else { dataTask.cancel() }
+        }
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            lock.withLock {
+                if let failure = failure ?? error { result = .failure(failure) }
+                else { result = .success(bytes) }
+            }
+            done.signal()
+        }
     }
 
     private static func uploadObjects(

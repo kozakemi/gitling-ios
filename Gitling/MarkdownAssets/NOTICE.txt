@@ -1,0 +1,12 @@
+Marked 18.2.0 (MIT)
+https://github.com/markedjs/marked
+Source: https://registry.npmjs.org/marked/-/marked-18.2.0.tgz
+NPM SHA512: sha512-KaeL+tAbtvI930q7HE2PN5lYXYdT8EiSmxHlN6F3rsfb57wd5mp5W5TLazpdj4inTQBJdgjYwbs40W/0VUGU+Q==
+SHA256 marked.bundle.txt: 392f4df89533b50f1dadff3f6dc0952350bd39c9f17def50a0374ef47d6147ef
+Vendored unchanged for offline JavaScriptCore parsing. No network or host APIs are exposed.
+
+marked-footnote 1.4.0 (MIT)
+https://github.com/bent10/marked-extensions
+Source: https://registry.npmjs.org/marked-footnote/-/marked-footnote-1.4.0.tgz
+NPM SHA512: sha512-fZTxAhI1TcLEs5UOjCfYfTHpyKGaWQevbxaGTEA68B51l7i87SctPFtHETYqPkEN0ka5opvy4Dy1l/yXVC+hmg==
+SHA256 marked-footnote.bundle.txt: 3ff8fd955edbe6a76eaae32ec8628caf29dbb103cfe6743654090153b833dcec

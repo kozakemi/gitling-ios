@@ -75,7 +75,7 @@ struct RepoListView: View {
                         .padding(.trailing, 20)
                         .padding(.bottom, 20)
                 }
-                .refreshable { await store.reload() }
+                .refreshable { await store.reload(waitForStatus: false) }
             }
             .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
             .background(Color(.systemGroupedBackground))
@@ -108,7 +108,7 @@ struct RepoListView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 store.revision += 1
-                Task { await store.reload() }
+                Task { await store.reload(waitForStatus: false) }
             }
         }
         .sheet(isPresented: $showAdd) { AddRepoSheet() }
@@ -245,10 +245,19 @@ struct RepoListView: View {
         return String(format: String(localized: "%d repositories"), count)
     }
 
-    private func subtitle(_ repo: RepoSummary) -> String {
-        if repo.unavailable { return String(localized: "Not a Git repository") }
-        let branch = repo.branch ?? String(localized: "No commits yet")
-        let state = repo.isDirty ? String(localized: "Changes pending") : String(localized: "Clean")
+    private func subtitle(_ repo: RepoSummary) -> String { RepositoryListLabels.subtitle(repo) }
+}
+
+enum RepositoryListLabels {
+    static func subtitle(_ repo: RepoSummary, locale: Locale = .current) -> String {
+        if repo.unavailable { return String(localized: "Not a Git repository", locale: locale) }
+        let branch = repo.branch ?? String(localized: repo.statusState == .checking ? "Loading repository…" : "No commits yet", locale: locale)
+        let state: String
+        switch repo.statusState {
+        case .checking: state = String(localized: "Checking status…", locale: locale)
+        case .unavailable: state = String(localized: "Status unavailable", locale: locale)
+        default: state = repo.isDirty ? String(localized: "Changes pending", locale: locale) : String(localized: "Clean", locale: locale)
+        }
         return "\(branch) · \(state)"
     }
 }

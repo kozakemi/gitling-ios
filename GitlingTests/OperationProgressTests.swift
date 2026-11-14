@@ -164,10 +164,11 @@ final class OperationProgressTests: XCTestCase {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         for locale in ["en", "zh-Hans", "ja"] {
             for width in [240.0, 346, 466, 619, 951] {
+              for phase in [GitProgress.Phase.receiving, .largeFiles] {
                 let state = OperationProgressState(id: UUID(), title: String(localized: "Updating submodules…"),
                     repository: "很长的仓库名称-Offline-Progress", startedAt: Date(),
-                    progress: .init(phase: .receiving, completed: 12345, total: 98765, bytes: 125000000,
-                                    submodule: "tools/很长的子模块目录/fixed_unit_queue"))
+                    progress: .init(phase: phase, completed: 12345, total: 98765, bytes: 125000000,
+                                    byteTotal: phase == .largeFiles ? 9999999999 : 0, submodule: "tools/很长的子模块目录/fixed_unit_queue"))
                 let card = UIHostingController(rootView: OperationProgressCard(state: state)
                     .environment(\.locale, Locale(identifier: locale)).environment(\.dynamicTypeSize, .accessibility3))
                 let intrinsic = card.sizeThatFits(in: CGSize(width: width, height: 10000))
@@ -191,6 +192,7 @@ final class OperationProgressTests: XCTestCase {
                     scroll.setContentOffset(CGPoint(x: 0, y: 30), animated: false)
                     XCTAssertGreaterThan(scroll.contentOffset.y, 0)
                 }
+              }
             }
         }
     }

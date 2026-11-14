@@ -630,7 +630,12 @@ private struct ComparisonFileDetailPage: View {
         GeometryReader { proxy in
             DiffPanelLayout {
                 ComparisonHeaderViewport(maximumHeight: max(96, min(260, proxy.size.height * 0.42))) {
-                    fileHeader(model.value?.file.id == file.id ? model.value!.file : file)
+                    VStack(alignment: .leading, spacing: 8) {
+                        fileHeader(model.value?.file.id == file.id ? model.value!.file : file)
+                        NavigationLink("Preview versions") {
+                            ComparisonVersionPreviewPage(repo: repo, comparison: comparison, file: file)
+                        }.padding(.horizontal)
+                    }
                 }
             } content: {
                 diffContent

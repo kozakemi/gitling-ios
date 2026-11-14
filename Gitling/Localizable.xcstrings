@@ -10284,6 +10284,796 @@
           }
         }
       }
+    },
+    "%lld × %lld pixels": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld × %lld 像素" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld × %lldピクセル" } }
+      }
+    },
+    "%lld pages": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 页" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lldページ" } }
+      }
+    },
+    "1 page": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "1 页" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "1ページ" } }
+      }
+    },
+    "Copied %1$@ of %2$@.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已复制 %1$@，共 %2$@。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%2$@のうち%1$@をコピーしました。" } }
+      }
+    },
+    "Copying preview…": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在复制预览副本…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プレビュー用のコピーを作成しています…" } }
+      }
+    },
+    "Could not read this file.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取这个文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルを読み取れません。" } }
+      }
+    },
+    "Git LFS object %1$@ (%2$@).": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git LFS 对象 %1$@（%2$@）。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Git LFSオブジェクト %1$@（%2$@）。" } }
+      }
+    },
+    "HTML is shown as source text and is not loaded as a page.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "HTML 以源码显示，不会按网页加载。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "HTMLはソースとして表示し、ページとしては読み込みません。" } }
+      }
+    },
+    "HTML source is larger than the %@ text preview limit and is not loaded as a page.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "HTML 源码超过 %@ 的文本预览上限，不会按网页加载。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "HTMLソースが%@のテキストプレビュー上限を超えているため、ページとしては読み込みません。" } }
+      }
+    },
+    "Image preview": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "图片预览" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "画像プレビュー" } }
+      }
+    },
+    "Long edge limited to %lld pixels.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "长边已限制为 %lld 像素。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "長辺は%lldピクセルまでに制限しています。" } }
+      }
+    },
+    "PDF preview": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "PDF 预览" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "PDFプレビュー" } }
+      }
+    },
+    "Preview from history is not available yet.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史版本预览尚未提供。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "履歴からのプレビューはまだ利用できません。" } }
+      }
+    },
+    "Preview storage is full. Close another preview and try again.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "预览缓存已满。请关闭其他预览后再试。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プレビュー用の空き領域がありません。ほかのプレビューを閉じてからやり直してください。" } }
+      }
+    },
+    "SVG is shown as source text and is not rendered.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "SVG 以源码显示，不会按图像渲染。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "SVGはソースとして表示し、画像としては描画しません。" } }
+      }
+    },
+    "SVG source is larger than the %@ text preview limit and is not rendered.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "SVG 源码超过 %@ 的文本预览上限，不会按图像渲染。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "SVGソースが%@のテキストプレビュー上限を超えているため、画像としては描画しません。" } }
+      }
+    },
+    "Showing the first frame of this animated image.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在显示这张动态图片的第一帧。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このアニメーション画像の最初のフレームを表示しています。" } }
+      }
+    },
+    "Text preview stops at %@. This file is %@.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文本预览停在 %@。这个文件是 %@。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "テキストプレビューは%@までです。このファイルは%@です。" } }
+      }
+    },
+    "The working folder is not available.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "工作目录当前不可用。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "作業フォルダを利用できません。" } }
+      }
+    },
+    "This PDF could not be read.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取这份 PDF。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このPDFを読み取れません。" } }
+      }
+    },
+    "This PDF is damaged and could not be opened.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这份 PDF 已损坏，无法打开。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このPDFは破損しているため開けません。" } }
+      }
+    },
+    "This PDF is encrypted and was not unlocked.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这份 PDF 已加密，没有解锁。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このPDFは暗号化されており、ロックは解除していません。" } }
+      }
+    },
+    "This file changed while it was being read. Open it again to preview the current version.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "读取过程中文件发生了变化。请重新打开以预览当前版本。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "読み取り中にファイルが変化しました。現在の版をプレビューするには、もう一度開いてください。" } }
+      }
+    },
+    "This file is %@, larger than the %@ preview limit.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个文件是 %@，超过 %@ 的预览上限。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルは%@で、%@のプレビュー上限を超えています。" } }
+      }
+    },
+    "This file is a symbolic link and was not followed.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这是符号链接，没有跟随打开。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルはシンボリックリンクであり、追跡して開いていません。" } }
+      }
+    },
+    "This file type cannot be previewed. Size: %@.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法预览这种文件。大小：%@。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイル形式はプレビューできません。サイズ：%@。" } }
+      }
+    },
+    "This image is %lld by %lld pixels, above the decode budget, so it was not expanded.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这张图片是 %lld × %lld 像素，超过解码预算，因此没有展开。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この画像は%lld×%lldピクセルで、デコード予算を超えるため展開していません。" } }
+      }
+    },
+    "This image is damaged and could not be decoded.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这张图片已损坏，无法解码。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この画像は破損しているためデコードできません。" } }
+      }
+    },
+    "This is a Git LFS pointer. The file was not downloaded.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这是 Git LFS 指针，没有下载文件内容。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "これはGit LFSポインタです。ファイル本体はダウンロードしていません。" } }
+      }
+    },
+    "This path is a directory.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个路径是目录。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このパスはディレクトリです。" } }
+      }
+    },
+    "UTF-8": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "UTF-8" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "UTF-8" } }
+      }
+    },
+    "UTF-16 LE": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "UTF-16 LE" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "UTF-16 LE" } }
+      }
+    },
+    "UTF-16 BE": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "UTF-16 BE" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "UTF-16 BE" } }
+      }
+    },
+    "UTF-32 LE": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "UTF-32 LE" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "UTF-32 LE" } }
+      }
+    },
+    "UTF-32 BE": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "UTF-32 BE" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "UTF-32 BE" } }
+      }
+    },
+    "GB18030": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "GB18030" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "GB18030" } }
+      }
+    },
+    "GBK": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "GBK" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "GBK" } }
+      }
+    },
+    "Big5": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Big5" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Big5" } }
+      }
+    },
+    "Shift JIS": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Shift JIS" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Shift JIS" } }
+      }
+    },
+    "Byte order mark": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "字节顺序标记" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "バイト順マーク" } }
+      }
+    },
+    "Selected manually": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "手动选择" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "手動で選択" } }
+      }
+    },
+    "Choose an encoding": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择编码" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エンコーディングを選択" } }
+      }
+    },
+    "This file is not valid UTF-8. Choose an encoding; none was guessed.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个文件不是有效的 UTF-8。请选择编码，应用不会猜测。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このファイルは有効なUTF-8ではありません。エンコーディングを選択してください。アプリは推測しません。" } }
+      }
+    },
+    "The selected encoding cannot read this file.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所选编码无法读取这个文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "選択したエンコーディングではこのファイルを読み取れません。" } }
+      }
+    },
+    "Source": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "源码" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ソース" } }
+      }
+    },
+    "Rendered": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "渲染" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "表示" } }
+      }
+    },
+    "Remote images, scripts, and other repository files are not loaded.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不会加载远程图片、脚本或仓库里的其他文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "リモート画像、スクリプト、リポジトリ内の他のファイルは読み込みません。" } }
+      }
+    },
+    "This system cannot preview this file.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前系统无法预览这个文件。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このシステムではこのファイルをプレビューできません。" } }
+      }
+    },
+    "This document's type is not specific enough to preview.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "识别到文档，但类型不够明确，无法预览。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "文書として認識しましたが、種類が特定できないためプレビューできません。" } }
+      }
+    },
+    "Preview is read-only. Changes in the preview are not saved.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "预览是只读的。预览里的改动不会保存。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プレビューは読み取り専用です。プレビュー内の変更は保存されません。" } }
+      }
+    },
+    "Press play to start. Playback does not start automatically.": {
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "按下播放后才开始。不会自动播放。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "再生ボタンを押すと始まります。自動では再生しません。" } }
+      }
+    },
+    "Preview cancelled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview cancelled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览已取消。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プレビューをキャンセルしました。"
+          }
+        }
+      }
+    },
+    "Only the recorded submodule OID is shown; no submodule is opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the recorded submodule OID is shown; no submodule is opened."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅显示记录的子模块 OID，不会打开子模块。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録されたサブモジュールのOIDのみを表示し、サブモジュールは開きません。"
+          }
+        }
+      }
+    },
+    "This ZIP uses an unsupported layout or exceeds the directory metadata budget. No files were extracted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This ZIP uses an unsupported layout or exceeds the directory metadata budget. No files were extracted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 ZIP 的结构不受支持，或目录元数据超过预算。没有解压任何文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このZIPの構造は未対応か、ディレクトリ情報が上限を超えています。ファイルは展開していません。"
+          }
+        }
+      }
+    },
+    "ZIP directory only. No files are extracted or opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIP directory only. No files are extracted or opened."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅查看 ZIP 目录，不会解压或打开条目。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIPのディレクトリのみ表示します。項目を展開したり開いたりしません。"
+          }
+        }
+      }
+    },
+    "%lld of %lld archive entries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %lld archive entries"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld 个归档条目"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld アーカイブ項目"
+          }
+        }
+      }
+    },
+    "Archive listing truncated at the entry limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive listing truncated at the entry limit."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档列表已在条目上限处截断。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "項目数の上限でアーカイブ一覧を打ち切りました。"
+          }
+        }
+      }
+    },
+    "Encrypted entry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encrypted entry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已加密条目"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暗号化された項目"
+          }
+        }
+      }
+    },
+    "Unsafe archive path — not followed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsafe archive path — not followed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不安全的归档路径——不会访问"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全でないアーカイブパス（アクセスしません）"
+          }
+        }
+      }
+    },
+    "Previous Page": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Page"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上一页"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前のページ"
+          }
+        }
+      }
+    },
+    "Next Page": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Page"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一页"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次のページ"
+          }
+        }
+      }
+    },
+    "Bytes %lld–%lld of %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bytes %lld–%lld of %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字节 %lld–%lld，共 %lld 字节"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バイト %lld–%lld / %lld"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バージョン"
+          }
+        }
+      }
+    },
+    "Preview versions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview versions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览两个版本"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "両バージョンをプレビュー"
+          }
+        }
+      }
+    },
+    "Line numbers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line numbers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行号"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行番号"
+          }
+        }
+      }
+    },
+    "On": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オン"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ"
+          }
+        }
+      }
+    },
+    "Block remote images": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Block remote images"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止加载远程图片"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リモート画像をブロック"
+          }
+        }
+      }
+    },
+    "%lld remote images · Tap to load": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld remote images · Tap to load"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发现 %lld 张远程图片 · 点击加载"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リモート画像 %lld 件 · タップして読み込む"
+          }
+        }
+      }
+    },
+    "Loading repository…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading repository…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取仓库…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリを読み込み中…"
+          }
+        }
+      }
+    },
+    "Checking status…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking status…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查状态…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状態を確認中…"
+          }
+        }
+      }
+    },
+    "Status unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取状态"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状態を読み取れません"
+          }
+        }
+      }
+    },
+    "Transferred: %@ of %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transferred: %@ of %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已传输：%@ / %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "転送済み: %@ / %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
