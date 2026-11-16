@@ -61,6 +61,10 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 | --- | --- |
 | ![差异](docs/images/diff.png) | ![GitLab](docs/images/gitlab-projects.png) |
 
+iPhone Duo / iOS 27.2 模拟器展开屏：复用现有离线夹具，展示仓库侧栏与 Markdown 预览（2026-11-16）。
+
+![Gitling 在 iPhone Duo 模拟器展开屏运行](docs/images/iphone-duo-markdown.png)
+
 ## 环境要求
 
 - iOS 18.0 或更高版本

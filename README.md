@@ -69,6 +69,10 @@ so other editors can modify files.
 | --- | --- |
 | ![Diff](docs/images/diff.png) | ![GitLab](docs/images/gitlab-projects.png) |
 
+iPhone Duo / iOS 27.2 simulator, unfolded display: repository sidebar and Markdown preview using an existing offline fixture (2026-11-16).
+
+![Gitling running on the unfolded iPhone Duo simulator](docs/images/iphone-duo-markdown.png)
+
 ## Requirements
 
 - iOS 18.0 or later
