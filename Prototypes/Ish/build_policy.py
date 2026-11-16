@@ -20,6 +20,14 @@ def replace_once(text, old, new):
         raise ValueError('Pinned source changed: ' + old[:70])
     return text.replace(old,new,1)
 
+def patch_uname(text):
+    # Darwin permits a longer nodename than Linux's 64-byte field. A hosted
+    # runner's hostname must never overflow guest memory or abort the host.
+    text = replace_once(text, '    struct utsname real_uname;\n    uname(&real_uname);',
+                        '    struct utsname real_uname = {0};\n    if (uname(&real_uname) != 0) strcpy(real_uname.nodename, "gitling");')
+    return replace_once(text, '    strcpy(uts->hostname, hostname);',
+                        '    snprintf(uts->hostname, sizeof(uts->hostname), "%s", hostname);')
+
 def main(platform="iphonesimulator", force_component_walk=False):
     src=kernel_source_path()
     if not src.exists() or not (src/'kernel/task.c').exists():
@@ -31,10 +39,12 @@ def main(platform="iphonesimulator", force_component_walk=False):
     includes=['-I'+str(src),'-I'+str(ROOT/'Prototypes/Ish')]
     common=['xcrun','clang','-target',triple,'-isysroot',sdk,'-std=gnu11','-O2','-DGUEST_ARM64=1','-DENGINE_ASBESTOS=1','-DLOG_HANDLER_STDERR=1','-fno-stack-protector',*includes]
     if force_component_walk: common.append('-DGP_FORCE_COMPONENT_WALK=1')
-    paths=['fs/mount.c','fs/real.c','kernel/task.c','kernel/time.c','kernel/exit.c','kernel/exec.c','fs/fake.c','kernel/calls.c','kernel/signal.c','fs/path.c']
+    paths=['fs/mount.c','fs/real.c','kernel/task.c','kernel/time.c','kernel/exit.c','kernel/exec.c','fs/fake.c','kernel/calls.c','kernel/signal.c','fs/path.c','kernel/uname.c']
     for path in paths:
         text=call(['git','-C',src,'show','HEAD:'+path])+'\n'
-        if path=='fs/mount.c':
+        if path=='kernel/uname.c':
+            text=patch_uname(text)
+        elif path=='fs/mount.c':
             # Both mount syscalls are refused even for guest root. Trusted host
             # code retains do_mount for rootfs/proc/devpts and one pinned share.
             assert text.count('    if (is_chrooted())')==2

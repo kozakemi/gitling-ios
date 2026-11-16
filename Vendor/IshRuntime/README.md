@@ -66,3 +66,9 @@ It does not undo changes already made to `/shared`. Reset failures leave the
 previous selector intact. Regression fixtures cover failed copies, malformed
 selectors and symlink-safe cleanup; an iPad two-launch check deletes Git/editors
 and the shell before restoring them offline and checking repository integrity.
+
+The local uname patch bounds Darwin hostnames and explicit overrides to the
+Linux ABI field, with a deterministic fallback if the host uname call fails.
+Long CI hostnames must not overflow the guest struct or trigger host libc
+fortification traps. The pinned implementation is exercised with address and
+undefined-behavior sanitizers in `Prototypes/Ish/test_uname.py`.

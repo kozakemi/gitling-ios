@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: ./scripts/test.sh
 
+      - name: Test kernel hostname boundaries
+        run: python3 -m unittest discover -s Prototypes/Ish -p 'test_uname.py'
+
       - name: Collect test diagnostics
         if: always()
         run: |
