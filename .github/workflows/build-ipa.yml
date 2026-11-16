@@ -35,6 +35,38 @@ jobs:
       - name: Run tests
         run: ./scripts/test.sh
 
+      - name: Collect test diagnostics
+        if: always()
+        run: |
+          mkdir -p build/ci-diagnostics
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import shutil
+          destination = Path('build/ci-diagnostics')
+          for source in Path.home().joinpath('Library/Logs/DiagnosticReports').glob('Gitling*.ips'):
+              shutil.copy2(source, destination / source.name)
+              try:
+                  report = json.loads(source.read_text().split('\n', 1)[1])
+                  print(source.name, report.get('exception'), report.get('termination'))
+                  for thread in report.get('threads', []):
+                      if thread.get('triggered'):
+                          print(json.dumps(thread, indent=2))
+              except (ValueError, IndexError) as error:
+                  print('Cannot summarize crash report:', error)
+          PY
+
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gitling-test-diagnostics
+          path: |
+            build/TestDerivedData-*/Logs/Test/
+            build/ci-diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Build IPA
         run: ./scripts/build-ipa.sh
 
