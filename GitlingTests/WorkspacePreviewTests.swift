@@ -985,11 +985,15 @@ final class WorkspacePreviewInterfaceTests: XCTestCase {
         let strong = await value("String(document.querySelector('strong'))")
         XCTAssertEqual(strong, "null")
         state.size = .accessibility3
+        var large = ""
         for _ in 0..<200 {
-            if await value("document.querySelector('p')?.textContent") == "same", await value("getComputedStyle(document.body).fontSize") != normal { break }
+            // Read content and style from the same document. The blank page
+            // between loads has a default 16px font, which is also "different"
+            // from normal but does not mean Dynamic Type finished rendering.
+            large = await value("document.querySelector('p')?.textContent === 'same' ? getComputedStyle(document.body).fontSize : ''")
+            if (Double(large.replacingOccurrences(of: "px", with: "")) ?? 0) > (Double(normal.replacingOccurrences(of: "px", with: "")) ?? 17) * 1.3 { break }
             try await Task.sleep(for: .milliseconds(25))
         }
-        let large = await value("getComputedStyle(document.body).fontSize")
         XCTAssertGreaterThan(Double(large.replacingOccurrences(of: "px", with: "")) ?? 0, (Double(normal.replacingOccurrences(of: "px", with: "")) ?? 17) * 1.3)
         XCTAssertFalse(view.configuration.defaultWebpagePreferences.allowsContentJavaScript)
         XCTAssertFalse(view.configuration.websiteDataStore.isPersistent)

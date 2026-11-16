@@ -37,6 +37,7 @@ if [ -n "${DEVELOPMENT_TEAM:-}" ]; then
     -configuration "$configuration" \
     -destination "generic/platform=iOS" \
     -archivePath "$archive" \
+    -derivedDataPath "$root/build/ArchiveDerivedData" \
     archive \
     DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     CODE_SIGN_STYLE=Automatic
@@ -47,6 +48,7 @@ else
     -configuration "$configuration" \
     -destination "generic/platform=iOS" \
     -archivePath "$archive" \
+    -derivedDataPath "$root/build/ArchiveDerivedData" \
     archive \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
@@ -88,4 +90,5 @@ else
   rm -rf "$payload"
 fi
 
+python3 "$root/scripts/verify-terminal-runtime.py" "$ipa"
 echo "Wrote $ipa"

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct RepoDetailView: View {
     @EnvironmentObject private var store: RepoStore
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var textSize
     let name: String
 
@@ -42,11 +43,14 @@ struct RepoDetailView: View {
     @State private var spinnerLoads = 0
     @State private var loadGeneration = 0
     @State private var cacheRestored = false
-    @State private var consoleLines: [ConsoleLine] = []
-    @State private var command = ""
-    @State private var isRunningCommand = false
+    @StateObject private var terminal: RepositoryTerminalModel
     @State private var refreshTask: Task<Void, Never>?
     @ScaledMetric(relativeTo: .body) private var commitRowHeight: CGFloat = 56
+
+    init(name: String, terminal: RepositoryTerminalModel? = nil) {
+        self.name = name
+        _terminal = StateObject(wrappedValue: terminal ?? RepositoryTerminalModel())
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -84,18 +88,14 @@ struct RepoDetailView: View {
             .padding(.top, 4)
             .padding(.bottom, 8)
 
-            Group {
-                switch section {
-                case 0:
-                    FileBrowser(repo: repoURL, directory: "", revision: store.revision)
-                case 1:
-                    historyList
-                case 2:
-                    statusView
-                default:
-                    consoleView
-                }
-            }
+            RepositorySectionPages(
+                selection: $section,
+                pagingEnabled: true,
+                files: nativePage(FileBrowser(repo: repoURL, directory: "", revision: store.revision)),
+                commits: nativePage(historyList),
+                status: nativePage(statusView),
+                terminal: consoleView
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if let loadError {
@@ -142,7 +142,7 @@ struct RepoDetailView: View {
                 }
                 showOperations = true
             }
-            .disabled(store.isBusy)
+            .disabled(store.isBusy || !terminal.nativeAccessReady)
         }
         .sheet(item: $restorePlan) { plan in
             FileRestoreConfirmation(plan: plan, external: linkedFolder != nil, busy: store.isBusy) {
@@ -201,8 +201,25 @@ struct RepoDetailView: View {
                 resetHistory()
             }
             await load(showSpinner: false)
+            terminal.ensureStarted(repo: repoURL, visible: section == 3)
         }
-        .onDisappear { refreshTask?.cancel() }
+        .onDisappear { refreshTask?.cancel(); terminal.setTerminalVisible(false) }
+        .onAppear {
+            terminal.setTerminalVisible(section == 3)
+            terminal.setForeground(scenePhase == .active)
+            let repositoryName = name
+            terminal.didFinish = { [weak store = store] safe in
+                guard safe, let store else { return }
+                Task { await store.refreshAfterTerminal(repository: repositoryName) }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in terminal.setForeground(phase == .active) }
+        .onChange(of: terminal.nativeAccessReady) { _, ready in
+            if ready && section != 3 {
+                resetHistory()
+                requestLoad(showSpinner: false)
+            }
+        }
         .onChange(of: allBranches) { _, isAll in
             if isAll {
                 resetHistory()
@@ -222,6 +239,7 @@ struct RepoDetailView: View {
             requestLoad(showSpinner: false)
         }
         .onChange(of: section) { _, newSection in
+            terminal.setTerminalVisible(newSection == 3)
             if newSection == 1 {
                 requestLoad(showSpinner: false)
             } else if newSection == 2 {
@@ -339,12 +357,15 @@ struct RepoDetailView: View {
                     }
                     Section {
                         ForEach(rows) { row in
-                            NavigationLink {
-                                CommitDetailView(repo: repoURL, commit: row.commit)
-                            } label: {
-                                CommitHistoryLabel(row: row, minimumHeight: commitRowHeight) {
-                                    branchChips(for: row.commit.id)
+                            HStack(spacing: 4) {
+                                NavigationLink {
+                                    CommitDetailView(repo: repoURL, commit: row.commit)
+                                } label: {
+                                    CommitHistoryLabel(row: row, minimumHeight: commitRowHeight) {
+                                        branchChips(for: row.commit.id)
+                                    }
                                 }
+                                CommitHashCopyButton(oid: row.commit.id, iconOnly: true)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 12))
@@ -506,37 +527,13 @@ struct RepoDetailView: View {
         }
     }
 
+    @ViewBuilder private func nativePage<Content: View>(_ content: Content) -> some View {
+        if terminal.nativeAccessReady { content }
+        else { ProgressView("Waiting for terminal to pause…") }
+    }
+
     private var consoleView: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if consoleLines.isEmpty {
-                        Text("Commands: status, log, diff, branch, help. This is not a shell.")
-                            .font(.footnote.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(consoleLines) { line in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("$ \(line.command)").font(.body.monospaced())
-                            Text(line.output).font(.caption.monospaced()).textSelection(.enabled)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-            }
-            HStack {
-                TextField("git status", text: $command)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(.body.monospaced())
-                    .onSubmit(runCommand)
-                Button("Run", action: runCommand)
-                    .disabled(isRunningCommand || command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
+        RepositoryTerminalView(repo: repoURL, model: terminal)
     }
 
     private func label(_ entry: StatusEntry) -> String {
@@ -545,21 +542,6 @@ struct RepoDetailView: View {
         if entry.staged && entry.unstaged { return String(localized: "Staged and unstaged") }
         if entry.staged { return String(localized: "Staged") }
         return String(localized: "Unstaged")
-    }
-
-    private func runCommand() {
-        let line = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !line.isEmpty, !isRunningCommand else { return }
-        command = ""
-        isRunningCommand = true
-        let url = repoURL
-        Task {
-            let output = await Task.detached(priority: .userInitiated) {
-                GitClient.commandOutput(at: url, line: line)
-            }.value
-            consoleLines.append(ConsoleLine(command: line, output: output))
-            isRunningCommand = false
-        }
     }
 
     private func applyCache(_ cached: RepoDetailSnapshot) {
@@ -589,6 +571,7 @@ struct RepoDetailView: View {
     }
 
     private func load(showSpinner: Bool) async {
+        guard terminal.nativeAccessReady else { return }
         loadGeneration += 1
         let generation = loadGeneration
         let url = repoURL
@@ -755,14 +738,6 @@ struct RepoDetailView: View {
         var error: String?
     }
 }
-
-private struct ConsoleLine: Identifiable {
-    let id = UUID()
-    var command: String
-    var output: String
-}
-
-
 
 private struct FileBrowser: View {
     let repo: URL
@@ -1002,6 +977,9 @@ struct CommitDetailView: View {
         }
         .navigationTitle(String(commit.id.prefix(7)))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { CommitHashCopyButton(oid: commit.id).font(.subheadline) }
+        }
         .task(id: commit.id) {
             isLoading = true
             error = nil

@@ -51,6 +51,10 @@ enum RepoStorage {
     }
 
     static func removeRepository(named name: String) throws {
+        let binding = try RepositoryAccessGate.holdBinding(repoName: name, guest: false)
+        defer { withExtendedLifetime(binding) {} }
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         for base in bases() {
             let repo = base.appendingPathComponent("repositories", isDirectory: true)
                 .appendingPathComponent(name, isDirectory: true)
@@ -113,6 +117,11 @@ enum RepoStorage {
     /// then keeps the Application Support copy as a backup. Nothing is moved, so a build
     /// that cannot see the app group still has a usable app copy.
     private static func synchronize() {
+        // Publishing copies across storage locations and must never race a
+        // shell that can write any repository path. A later native operation
+        // can publish once the guest has released its reservation.
+        guard let access = try? RepositoryAccessGate.holdNative() else { return }
+        defer { withExtendedLifetime(access) {} }
         let live = liveBase()
         let local = applicationSupportBase()
         let documents = documentsBase()

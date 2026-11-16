@@ -20,6 +20,11 @@ so other editors can modify files.
 
 ## Features
 
+- Swipe between file contents, history and blame; swipe Diff and Markdown selectors while keeping content horizontal scrolling available
+- Reset a damaged terminal environment from Settings; reopen the app to restore bundled offline tools
+
+- Persistent offline Linux shell with PTY, live ANSI output, Ctrl-C, resizing and repository sharing; native Git/File Provider operations are protected while a shell is active
+
 - Copy-import existing repositories while preserving the source, full local Git data, and uncommitted state; convert bare repositories offline
 
 - Stage and unstage individual files, with separate working-tree and staged diffs
@@ -28,6 +33,7 @@ so other editors can modify files.
 - Recoverable merge/rebase/cherry-pick conflicts: inspect both sides and the working file, import external edits, confirm resolutions, continue or abort
 - Submodule status, initialization, updates, and recursion, with dirty-worktree protection and resumable failures
 - Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection
+- Tap the copy control in commit lists or tap a commit hash in details to copy its full OID
 - Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination
 - File history, historical versions, worktree blame with commit navigation, and basic syntax highlighting
 - Compare any two fixed commits, browse changed files, and switch between their file previews
@@ -73,6 +79,12 @@ iPhone Duo / iOS 27.2 simulator, unfolded display: repository sidebar and Markdo
 
 ![Gitling running on the unfolded iPhone Duo simulator](docs/images/iphone-duo-markdown.png)
 
+iPad Pro 13 / iOS 18.6 simulator: terminal and environment reset settings (2026-11-16).
+
+| Terminal | Reset settings |
+| --- | --- |
+| ![iPad terminal](docs/images/ipad-terminal.png) | ![iPad terminal settings](docs/images/ipad-terminal-settings.png) |
+
 ## Requirements
 
 - iOS 18.0 or later
@@ -96,6 +108,30 @@ Build an unsigned IPA:
 ```
 
 The output is `build/Gitling.ipa`. An unsigned IPA cannot be installed directly on a device.
+The ordinary Xcode and IPA builds include the hardened iSH arm64 kernel, SwiftTerm,
+an Alpine rootfs and 25 pinned APKs, including Git, Vim and nano. The first developer build downloads
+checksummed artifacts; later builds reuse `build/ish-prototype` offline. The
+installed app initializes Git, Vim and nano without network access. Builds require an Apple
+Silicon Mac (the embedded simulator runtime is arm64).
+
+Entering a repository starts its shell automatically. `/shared` is the selected
+worktree; linked external folders also use `/gitdata` for that repository's Git
+metadata. The shell and scrollback remain alive when switching or swiping tabs.
+Other tabs park the complete Guest process tree before granting native Git and
+Files access; returning to Console reacquires the exclusive gate before resuming.
+Directory, environment and background jobs are preserved, with jobs paused while
+the terminal is hidden. Leaving the repository cancels its tree. Backgrounding
+parks the session; iOS may still terminate the application. Keyboard Ctrl-C remains
+available, and **Stop Shell** explicitly ends a session. Delete/link/unlink require
+ending the session first to keep its mounted workspace identity stable. This is
+Linux userspace inside iOS, not a macOS host shell. See [runtime sources and notices](Vendor/IshRuntime/README.md).
+
+Manual commands can remove the shell, Git, editors or startup configuration.
+**Settings → Reset Terminal Environment** stages a clean copy for the next app
+launch. It removes all private Linux files, including repositories cloned inside
+that private environment. Gitling-managed repositories, linked folders, commits
+and saved app credentials are kept. Reset does not undo shell changes to shared
+repository files.
 
 GitHub Actions also builds the unsigned IPA on every push to `main`, on pull
 requests, and on manual dispatch. Open the latest run on the
@@ -120,9 +156,13 @@ Local tests use the simulator allowlist configured in the test script and disabl
 parallel simulator cloning. CI uses an existing
 device on its temporary host.
 
-Latest local validation (2026-11-14): **325/325 tests passed on each of iOS 18.6 and
-Duo QA / iOS 27.2, with no failures or skips**. The unsigned generic iOS Release
-build, localization checks, and strict simulator app signatures also passed.
+Latest local validation (2026-11-16): **356/356 tests passed on each of iPhone / iOS 18.6,
+Duo QA / iOS 27.2 and iPad Pro 13 / iOS 18.6, with no failures or skips**.
+Coverage includes terminal lifecycle, reset rollback, swipe boundaries and lazy
+file history/blame loading. An actual two-launch iPad recovery check restored
+Git, Vim, nano and the shell after deletion, preserving the native repository
+and app preferences. The unsigned generic iOS Release
+IPA with verified offline terminal dependencies, localization checks, and strict simulator app signatures also passed.
 Simulator checks do not replace physical-device or third-party file-provider acceptance.
 
 Localization coverage check:

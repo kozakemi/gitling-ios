@@ -483,6 +483,8 @@ enum WorkspacePreview {
     }
 
     static func load(root: URL, path: String, budget: PreviewBudget = .standard, cache: PreviewCache, token: PreviewCancellation = PreviewCancellation(), progress: PreviewProgressRelay? = nil, whileReading: (@Sendable () -> Void)? = nil, support: PreviewSystemSupport = .live) throws -> PreviewLoadResult {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         try token.check()
         do {
             return try read(root: root, path: path, budget: budget, cache: cache, token: token, progress: progress, whileReading: whileReading, support: support)

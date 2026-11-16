@@ -33,6 +33,7 @@ struct DiffScopePicker: View {
                 }
             }
         }.accessibilityIdentifier("diff.scope")
+            .swipeSelection($scope, values: [.worktree, .staged])
     }
     private var picker: some View {
         Picker("Diff", selection: $scope) {

@@ -15,6 +15,13 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 
 ## 功能
 
+- 文件查看页支持左右滑动切换内容、历史和 Blame；Diff 与 Markdown 支持在分段选择器上滑动切换，保留内容横向滚动
+- 设置中可重设被命令损坏的终端环境，重新打开应用后恢复离线工具
+
+- 点击提交列表的复制按钮或详情中的哈希，即可复制完整 commit OID，并显示复制反馈
+
+- 持久离线 Linux Shell：PTY、ANSI 实时输出、Ctrl-C、窗口尺寸同步和仓库共享；终端运行期间保护原生 Git 与文件提供方的并发访问
+
 - 复制导入已有仓库，保留源目录、完整 Git 数据及未提交状态；支持裸仓库离线转换
 
 - 状态页逐文件暂存、取消暂存，并分别查看工作区和暂存区差异
@@ -65,6 +72,12 @@ iPhone Duo / iOS 27.2 模拟器展开屏：复用现有离线夹具，展示仓�
 
 ![Gitling 在 iPhone Duo 模拟器展开屏运行](docs/images/iphone-duo-markdown.png)
 
+iPad Pro 13 / iOS 18.6 模拟器：终端和重设设置页（2026-11-16）。
+
+| 终端 | 重设终端环境 |
+| --- | --- |
+| ![iPad 终端](docs/images/ipad-terminal.png) | ![iPad 终端设置](docs/images/ipad-terminal-settings.png) |
+
 ## 环境要求
 
 - iOS 18.0 或更高版本
@@ -88,6 +101,24 @@ open Gitling.xcodeproj
 ```
 
 产物在 `build/Gitling.ipa`。未签名包不能直接安装到真机。
+普通 Xcode 构建与 IPA 构建均包含加固后的 iSH arm64 内核、SwiftTerm、Alpine
+根文件系统及 25 个固定版本的 APK，其中包括 Git、Vim 和 nano。首次开发构建会下载并校验依赖，之后可复用
+`build/ish-prototype` 离线缓存；安装后的应用无需联网即可初始化 Git、Vim 和 nano。
+构建需要 Apple Silicon Mac（内嵌模拟器运行时仅支持 arm64）。
+
+进入仓库后自动启动 Shell。`/shared` 为当前工作区，关联外部目录时另外通过 `/gitdata`
+共享该仓库的 Git 元数据。切换或左右滑动 Tab 不会结束会话，目录、环境变量、后台
+任务和终端回滚内容均保留。查看其他 Tab 时，先确认整个 Guest 进程树安全暂停再开放
+原生 Git 与“文件”访问；返回控制台时先重新取得独占锁再恢复执行，隐藏时后台任务
+也会暂停。离开仓库会取消完整进程树；应用切到后台时暂停，iOS 仍可能终止应用。
+顶部不再显示启动与 Ctrl-C 按钮，键盘 Ctrl-C 仍可使用；「结束终端」可显式关闭会话。
+删除仓库或切换关联工作区前需先结束会话，以保护既有挂载。这里运行的是 iOS 内的
+Linux 用户空间，不是 macOS 宿主 Shell。[运行时来源及许可说明](Vendor/IshRuntime/README.md)。
+
+手工命令可能删除终端的 Shell、Git、编辑器或配置。设置中的「重设终端环境」会先准备
+干净副本，重新打开应用后生效；清除私有 Linux 环境内的所有文件，包括在其中另行克隆的
+仓库。Gitling 管理的仓库、关联目录、提交及应用凭据保持完整，但不会撤销命令已对共享
+仓库造成的修改。
 
 GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发时自动编译未签名 IPA。打开
 [Actions 页面](https://github.com/kozakemi/gitling-ios/actions/workflows/build-ipa.yml) 的最新运行，
@@ -107,7 +138,7 @@ GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发�
 
 本机测试脚本仅使用已配置的模拟器白名单设备，并关闭并行克隆；CI 使用临时宿主已有设备。
 
-最近本机验证（2026-11-14）：iOS 18.6 与 Duo QA / iOS 27.2 各 **325/325 通过，0 失败、0 跳过**。通用 iOS Release 未签名构建、本地化及模拟器应用严格签名检查通过。模拟器验证不替代真机和第三方文件提供方验收。
+最近本机验证（2026-11-16）：iPhone / iOS 18.6、Duo QA / iOS 27.2 与 iPad Pro 13 / iOS 18.6 各 **356/356 通过，0 失败、0 跳过**，包含正式 PTY 终端、完整哈希复制、共享目录与进程树退出、重设失败回滚、滑动边界及文件历史懒加载回归。iPad 另已验证破坏私有 Shell 后重设并重启恢复 Git、Vim、nano，原生仓库和应用偏好保持完整。通用 iOS Release 未签名 IPA 及其离线依赖完整性、本地化和模拟器应用严格签名检查通过。模拟器验证不替代真机和第三方文件提供方验收。
 
 本地化覆盖检查：
 

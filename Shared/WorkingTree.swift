@@ -4,6 +4,7 @@ enum WorkingTreeError: Error, Equatable, LocalizedError {
     case notFound
     case invalidName
     case busy
+    case terminalWorkspaceBusy
     case repoProtected
     case outside
     case collision
@@ -16,6 +17,8 @@ enum WorkingTreeError: Error, Equatable, LocalizedError {
             String(localized: "That name cannot be used.")
         case .busy:
             String(localized: "A Git operation is running on this repository. Try again shortly.")
+        case .terminalWorkspaceBusy:
+            String(localized: "End the terminal session before changing or deleting its working folder.")
         case .repoProtected:
             String(localized: "Repositories can only be deleted from within Gitling.")
         case .outside:
@@ -67,6 +70,8 @@ enum WorkingTree {
     }
 
     static func node(root: URL, identifier: String, workRoot: URL? = nil) throws -> Node {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         guard identifier.hasPrefix("repo:") else { throw WorkingTreeError.notFound }
         let body = String(identifier.dropFirst("repo:".count))
         guard !body.isEmpty else { throw WorkingTreeError.notFound }
@@ -106,6 +111,8 @@ enum WorkingTree {
     }
 
     static func children(root: URL, identifier: String, workRoot: URL? = nil) throws -> [Node] {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         let parent = try node(root: root, identifier: identifier, workRoot: workRoot)
         guard parent.isDirectory else { return [] }
         let urls = try FileManager.default.contentsOfDirectory(
@@ -145,6 +152,8 @@ enum WorkingTree {
         contents: Data?,
         workRoot: URL? = nil
     ) throws -> String {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         let parent = try node(root: root, identifier: parentIdentifier, workRoot: workRoot)
         guard parent.isDirectory else { throw WorkingTreeError.invalidName }
         try requireSafeName(name)
@@ -176,6 +185,8 @@ enum WorkingTree {
         contents: URL?,
         workRoot: URL? = nil
     ) throws -> String {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         let current = try node(root: root, identifier: identifier, workRoot: workRoot)
         guard !current.isRepoRoot else { throw WorkingTreeError.repoProtected }
         let parentID = newParentIdentifier ?? parentIdentifier(of: current) ?? identifier
@@ -200,6 +211,8 @@ enum WorkingTree {
     }
 
     static func delete(root: URL, identifier: String, workRoot: URL? = nil) throws {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         let current = try node(root: root, identifier: identifier, workRoot: workRoot)
         guard !current.isRepoRoot else { throw WorkingTreeError.repoProtected }
         try RepoWriteLock.withSharedLock(at: current.repoURL) {

@@ -112,6 +112,22 @@
           }
         }
       }
+    },
+    "End the terminal session before changing or deleting its working folder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先结束终端会话，再更换工作目录或删除仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業フォルダの変更または削除前に端末セッションを終了してください。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

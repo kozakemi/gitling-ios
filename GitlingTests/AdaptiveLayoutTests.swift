@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import UIKit
 @testable import Gitling
 
 @MainActor
@@ -40,6 +41,47 @@ final class AdaptiveLayoutTests: XCTestCase {
                 XCTAssertTrue(size.height.isFinite)
             }
         }
+    }
+
+    func testRepositorySectionsSwipeBetweenFilesCommitsStatusAndTerminal() throws {
+        let selection = SectionSelection()
+        let host = UIHostingController(rootView: SectionSwipeHost(selection: selection))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        let gate = try XCTUnwrap(Self.find(identifier: "repository.sections.gate", in: host.view))
+        let scroller = try XCTUnwrap(RepositoryPagingGate.pagingScroller(from: gate))
+        XCTAssertTrue(scroller.isScrollEnabled)
+        let page = scroller.bounds.width
+        XCTAssertGreaterThanOrEqual(scroller.contentSize.width, page * 3.5)
+        let collection = try XCTUnwrap(scroller as? UICollectionView)
+        for expected in 1...3 {
+            collection.setContentOffset(CGPoint(x: page * CGFloat(expected), y: 0), animated: false)
+            collection.layoutIfNeeded()
+            var target = collection.contentOffset
+            collection.delegate?.scrollViewWillEndDragging?(collection, withVelocity: .zero, targetContentOffset: &target)
+            collection.delegate?.scrollViewDidEndDecelerating?(collection)
+            host.view.layoutIfNeeded()
+            let visible = collection.indexPathsForVisibleItems.map(\.item).sorted()
+            XCTAssertTrue(visible.contains(expected), "Visible pages \(visible), selection \(selection.section)")
+            XCTAssertEqual(selection.section, expected)
+        }
+    }
+
+    func testSectionSwipeChangesOneTabAndPreservesVerticalScrollingAndEdges() {
+        let pages = FileInspectSection.allCases
+        XCTAssertEqual(SectionSwipe.destination(from: .contents, values: pages, translation: CGSize(width: -100, height: 5)), .history)
+        XCTAssertEqual(SectionSwipe.destination(from: .history, values: pages, translation: CGSize(width: 100, height: 5)), .contents)
+        XCTAssertNil(SectionSwipe.destination(from: .contents, values: pages, translation: CGSize(width: 100, height: 0)))
+        XCTAssertNil(SectionSwipe.destination(from: .blame, values: pages, translation: CGSize(width: -100, height: 0)))
+        XCTAssertNil(SectionSwipe.destination(from: .history, values: pages, translation: CGSize(width: 10, height: 100)))
+        XCTAssertNil(SectionSwipe.destination(from: .history, values: pages, translation: CGSize(width: -40, height: 0)))
+        XCTAssertEqual(SectionSwipe.destination(from: GitClient.DiffScope.worktree, values: [.worktree, .staged], translation: CGSize(width: -100, height: 0)), .staged)
     }
 
     func testSectionPickerFitsNarrowDetailAndAccessibilitySizes() {
@@ -136,7 +178,36 @@ final class AdaptiveLayoutTests: XCTestCase {
         }
     }
 
-    private final class Selection: ObservableObject {
+    private final class SectionSelection: ObservableObject {
+    @Published var section = 0
+}
+
+private struct SectionPage: UIViewRepresentable {
+    var title: String
+    func makeUIView(context: Context) -> UILabel {
+        let label = UILabel()
+        label.text = title
+        label.accessibilityIdentifier = title
+        return label
+    }
+    func updateUIView(_ label: UILabel, context: Context) { label.text = title }
+}
+
+private struct SectionSwipeHost: View {
+    @ObservedObject var selection: SectionSelection
+    var body: some View {
+        RepositorySectionPages(
+            selection: $selection.section,
+            pagingEnabled: true,
+            files: SectionPage(title: "Files page"),
+            commits: SectionPage(title: "Commits page"),
+            status: SectionPage(title: "Status page"),
+            terminal: SectionPage(title: "Terminal page")
+        )
+    }
+}
+
+private final class Selection: ObservableObject {
         @Published var name = "first"
         @Published var compact = false
         var identities: [String: UUID] = [:]
@@ -187,5 +258,13 @@ final class AdaptiveLayoutTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(10))
         }
         XCTAssertNotEqual(try XCTUnwrap(selection.identities["first"]), first)
+    }
+
+    private static func find(identifier: String, in root: UIView) -> UIView? {
+        if root.accessibilityIdentifier == identifier { return root }
+        for child in root.subviews {
+            if let found = find(identifier: identifier, in: child) { return found }
+        }
+        return nil
     }
 }

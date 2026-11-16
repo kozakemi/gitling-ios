@@ -42,6 +42,8 @@ enum ProviderWorkspace {
     }
 
     static func withCurrentRoots<T>(_ body: (URL, URL) throws -> T) throws -> T {
+        let gate = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(gate) {} }
 #if targetEnvironment(simulator)
         guard let group = RepoStorage.groupContainer else { throw CocoaError(.fileReadNoPermission) }
         return try withAccess(sharedGroup: group, body)

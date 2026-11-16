@@ -272,6 +272,8 @@ enum GitClient {
     }
 
     static func link(at repoURL: URL, bookmark: Data) throws {
+        let binding = try RepositoryAccessGate.holdBinding(repoName: repoURL.lastPathComponent, guest: false)
+        defer { withExtendedLifetime(binding) {} }
         try writing(repoURL) {
             try locked {
                 let opened = try open(repoURL)
@@ -283,6 +285,8 @@ enum GitClient {
     }
 
     static func unlink(at repoURL: URL) throws {
+        let binding = try RepositoryAccessGate.holdBinding(repoName: repoURL.lastPathComponent, guest: false)
+        defer { withExtendedLifetime(binding) {} }
         try writing(repoURL) {
             try locked {
                 let opened = try open(repoURL)
@@ -1083,6 +1087,10 @@ enum GitClient {
     }
 
     static func configText(at repoURL: URL) -> String {
+        let access: RepoWriteLock.Hold
+        do { access = try RepositoryAccessGate.holdNative() }
+        catch { return error.localizedDescription }
+        defer { withExtendedLifetime(access) {} }
         let url = repoURL.appendingPathComponent(".git/config")
         return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
@@ -1370,9 +1378,11 @@ enum GitClient {
     }
 
     private final class OpenRepo {
+        private let repositoryAccess: RepoWriteLock.Hold
         let repo: OpaquePointer
         let access: WorktreeLink.Access?
         init(path: String, access: WorktreeLink.Access?) throws {
+            repositoryAccess = try RepositoryAccessGate.holdNative()
             var repo: OpaquePointer?
             let code = git_repository_open(&repo, path)
             if code < 0 || repo == nil {
@@ -1539,6 +1549,8 @@ enum GitClient {
     }
 
     private static func locked<T>(_ body: () throws -> T) throws -> T {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         lock.lock()
         defer { lock.unlock() }
         _ = ready
@@ -1546,6 +1558,8 @@ enum GitClient {
     }
 
     private static func writing(_ repoURL: URL, _ body: () throws -> Void) throws {
+        let access = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(access) {} }
         try RepoWriteLock.withLock(at: repoURL, body)
     }
 
@@ -3583,6 +3597,8 @@ extension GitClient {
     }
 
     static func fileSearch(at repoURL: URL, query raw: String, cancellation: SearchCancellation = .init()) throws -> RepositorySearchCursor<WorkEntry> {
+        let accessGate = try RepositoryAccessGate.holdNative()
+        defer { withExtendedLifetime(accessGate) {} }
         try cancellation.check()
         let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty { return .init(cancellation: cancellation) { _, _ in .init(items: [], hasMore: false, scanned: 0) } }

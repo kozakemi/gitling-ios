@@ -318,9 +318,8 @@ struct ComparisonEndpointHeader: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(endpoint.oid)
+                CommitHashCopyButton(oid: endpoint.oid, full: true)
                     .font(.caption2.monospaced())
-                    .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

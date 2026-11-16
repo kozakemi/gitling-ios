@@ -173,6 +173,7 @@ enum SearchWorktreeAccess {
 }
 
 final class FileNameSearchReader {
+    private let repositoryAccess: RepoWriteLock.Hold
     private struct Directory { let pointer: UnsafeMutablePointer<DIR>; let relative: String }
     private let root: URL
     private let access: WorktreeLink.Access?
@@ -182,6 +183,7 @@ final class FileNameSearchReader {
     private var buffered: WorkEntry?
     private var scanned = 0
     init(root: URL, access: WorktreeLink.Access?, query: String) throws {
+        repositoryAccess = try RepositoryAccessGate.holdNative()
         self.root = root; self.access = access; self.query = query
         let fd = try SearchWorktreeAccess.directory(root: root)
         var info = stat()

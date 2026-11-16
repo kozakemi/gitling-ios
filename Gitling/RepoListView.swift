@@ -571,6 +571,7 @@ private struct SettingsSheet: View {
                 }
                 sshKeysSection
                 accountsSection
+                TerminalResetSection()
                 Section("Files") {
                     Button("Show in Files") {
                         Task {

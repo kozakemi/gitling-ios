@@ -1,0 +1,148 @@
+{
+  "kernel": {
+    "url": "https://github.com/Lolendor/ish-arm64-pkg/releases/download/v0.3.3/libIshKernel.xcframework.zip",
+    "sha256": "f747c2e85c3b6082e102fb45aa62797f52146a3bc5eb1a0c386b74bc156d4fca"
+  },
+  "rootfs": {
+    "url": "https://github.com/Lolendor/ish-arm64-pkg/releases/download/v0.3.3/fs.tar.gz",
+    "sha256": "be0f3c133f78f28b023288459b33dc28fa253a6ef29f7123bc5f3892edf90ad4"
+  },
+  "packages": [
+    {
+      "name": "git-2.43.7-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/git-2.43.7-r0.apk",
+      "sha256": "77ad3cf340981c7109480397098e4d4cda46ce5b6774194384421e29ee241eae"
+    },
+    {
+      "name": "musl-1.2.4_git20230717-r6.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/musl-1.2.4_git20230717-r6.apk",
+      "sha256": "6685d4a557c963a198426edbf9ecc66fa1f12bfe51185df69173984d67bd1b40"
+    },
+    {
+      "name": "libcurl-8.14.1-r2.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libcurl-8.14.1-r2.apk",
+      "sha256": "e034938f37d7e1bfd0ca90d47f5466cb7f099add686a8dc9d83a0407bbfacf95"
+    },
+    {
+      "name": "ca-certificates-20261020-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/ca-certificates-20261020-r0.apk",
+      "sha256": "a8cf35555d99294a3ded3a03245c88d69e557d708ea6e3b9bbbbf65368b303a1"
+    },
+    {
+      "name": "libcrypto3-3.1.8-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libcrypto3-3.1.8-r1.apk",
+      "sha256": "b1200306ccef31f979e5f4019cad5606c5543a1eed88308a19ff20232de9d5f5"
+    },
+    {
+      "name": "brotli-libs-1.1.0-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/brotli-libs-1.1.0-r1.apk",
+      "sha256": "af480c8ad10563215b8f4c6d15edf9a5ef98400ac7b65fa88ea0891e3a78ae17"
+    },
+    {
+      "name": "c-ares-1.27.0-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/c-ares-1.27.0-r0.apk",
+      "sha256": "039ecfef6bbb9c7a9da7fe01ee1442da66d8abdc105b9a351dcaaff6b07897f9"
+    },
+    {
+      "name": "libidn2-2.3.4-r4.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libidn2-2.3.4-r4.apk",
+      "sha256": "24f713cc2f05c33f9ed7b1ab0c3e85aa6c8dc13d74de4e2b88680c84d85f4dd3"
+    },
+    {
+      "name": "libunistring-1.1-r2.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libunistring-1.1-r2.apk",
+      "sha256": "86b780360d27a8fa6314d71ce9ad6b9ac2683c101255a0cadb201f9ccce993bf"
+    },
+    {
+      "name": "nghttp2-libs-1.58.0-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/nghttp2-libs-1.58.0-r0.apk",
+      "sha256": "f4b045cfbf03f87e6dd7a1905a3f3c73810a529ecab7f191e10e6c3280c5b173"
+    },
+    {
+      "name": "libpsl-0.21.5-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libpsl-0.21.5-r0.apk",
+      "sha256": "0250fc5714aa490c94c707bb015aa1263fc4e5382cc37b2ba95f4d0ffcd5ce28"
+    },
+    {
+      "name": "libssl3-3.1.8-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libssl3-3.1.8-r1.apk",
+      "sha256": "b0d7fa0b094111d5da3d2347b0874c154d114df464958ecb0ddfce3ef43cbd10"
+    },
+    {
+      "name": "zlib-1.3.1-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/zlib-1.3.1-r0.apk",
+      "sha256": "cbdda08ba73f314f12b15a3594a2b5b1495d07f0835a235032efd1757bd17288"
+    },
+    {
+      "name": "libexpat-2.7.3-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libexpat-2.7.3-r0.apk",
+      "sha256": "89c11aef1dda5427d58872bbfc949a8bcf5ddf974cfc0383a3282ffe6a9f5203"
+    },
+    {
+      "name": "pcre2-10.42-r2.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/pcre2-10.42-r2.apk",
+      "sha256": "afcce9e3a3be6f19cfe82859a82268573620c2f7155ed605881106f591b93b4f"
+    },
+    {
+      "name": "ncurses-terminfo-base-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/ncurses-terminfo-base-6.4_p20231125-r0.apk",
+      "sha256": "46fa1f30e75ef199e1999c114737464d88ca5c0a0ae9387cc0f02f91e1ee0663"
+    },
+    {
+      "name": "nano-7.2-r1.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/nano-7.2-r1.apk",
+      "sha256": "69821ea8b7dddf9f6a31375df1702487d9adc10cefbdcf1e1473b9862f23fc7c"
+    },
+    {
+      "name": "vim-9.0.2127-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/vim-9.0.2127-r0.apk",
+      "sha256": "32ac437d11a4ddf0b1533b559328a4dfd16069cabd38d96ddf8be24f4d1756c7"
+    },
+    {
+      "name": "vim-common-9.0.2127-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/vim-common-9.0.2127-r0.apk",
+      "sha256": "20d9de02fb614e7d743ab8e83cf88a89b135dd39ef976ff29e27b5a64d10f689"
+    },
+    {
+      "name": "xxd-9.0.2127-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/xxd-9.0.2127-r0.apk",
+      "sha256": "aa270522c2f4785218167dfce41e50474e82ca2c4cf3fd3e8a59c8f91ac8ab97"
+    },
+    {
+      "name": "ncurses-libs-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/ncurses-libs-6.4_p20231125-r0.apk",
+      "sha256": "9fdbfaa01714bc4d698a48d908da9d62cd7ceb7b190bffd89e199e32c6098891"
+    },
+    {
+      "name": "libncursesw-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libncursesw-6.4_p20231125-r0.apk",
+      "sha256": "f003f18ee71eb9f2e848e634a6e6c7e121130bf970334efa1bffbba7423179fa"
+    },
+    {
+      "name": "libformw-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libformw-6.4_p20231125-r0.apk",
+      "sha256": "7f809432e81e7cedb89563cf9b9c76ce707016fbd43e5b562b6b44331294c4e3"
+    },
+    {
+      "name": "libmenuw-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libmenuw-6.4_p20231125-r0.apk",
+      "sha256": "89a4f18596ef753aa1d20ec1efb0966e8a456c8de1164561298671bde82dbbd0"
+    },
+    {
+      "name": "libpanelw-6.4_p20231125-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/libpanelw-6.4_p20231125-r0.apk",
+      "sha256": "bef6e47f7b47733c213770764ef37c0dbaf2060c4484b3ad897298186283da2e"
+    }
+  ],
+  "kernelSource": {
+    "url": "https://github.com/Lolendor/ish-arm64.git",
+    "revision": "2f075626049d989dc9ac350a35c09f0b18930ffc"
+  },
+  "terminfo": {
+    "name": "xterm-256color",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.19/main/aarch64/ncurses-terminfo-base-6.4_p20231125-r0.apk",
+    "sha256": "46fa1f30e75ef199e1999c114737464d88ca5c0a0ae9387cc0f02f91e1ee0663",
+    "entry": "etc/terminfo/x/xterm-256color",
+    "fileSha256": "375da81b08a91cbbe97b1316f567346e7f31b3ec1cd4fb5be048908e920d4a3e"
+  }
+}

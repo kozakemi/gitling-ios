@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A1000000000000000000000E /* static-libgit2 in Frameworks */ = {isa = PBXBuildFile; productRef = A1000000000000000000000A /* static-libgit2 */; };
 		A1000000000000000000003C /* GitlingFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000030 /* GitlingFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B20000000000000000000001 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = B20000000000000000000002 /* SwiftTerm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +86,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000E /* static-libgit2 in Frameworks */,
+				B20000000000000000000001 /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +135,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A10000000000000000000006 /* Build configuration list for PBXNativeTarget "Gitling" */;
 			buildPhases = (
+				B20000000000000000000004 /* Prepare offline terminal */,
 				A10000000000000000000007 /* Sources */,
 				A10000000000000000000008 /* Frameworks */,
 				A10000000000000000000009 /* Resources */,
@@ -150,6 +153,7 @@
 			name = Gitling;
 			packageProductDependencies = (
 				A1000000000000000000000A /* static-libgit2 */,
+				B20000000000000000000002 /* SwiftTerm */,
 			);
 			productName = Gitling;
 			productReference = A10000000000000000000001 /* Gitling.app */;
@@ -245,6 +249,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1000000000000000000000D /* XCLocalSwiftPackageReference "Vendor/static-libgit2" */,
+				B20000000000000000000003 /* XCLocalSwiftPackageReference "Vendor/SwiftTerm" */,
 			);
 			productRefGroup = A10000000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -280,6 +285,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B20000000000000000000004 /* Prepare offline terminal */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Prepare offline terminal";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "python3 \"$SRCROOT/scripts/prepare-terminal-runtime.py\"";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000007 /* Sources */ = {
@@ -329,6 +352,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gitling/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Gitling;
@@ -343,11 +367,18 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(SRCROOT)/build/terminal-runtime/$(PLATFORM_NAME)",
+					"-lGitlingIsh",
+					"-lsqlite3",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.maneeshacooray.gitling.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Vendor/IshRuntime";
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -364,6 +395,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Gitling/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Gitling;
@@ -378,11 +410,18 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(SRCROOT)/build/terminal-runtime/$(PLATFORM_NAME)",
+					"-lGitlingIsh",
+					"-lsqlite3",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.maneeshacooray.gitling.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Vendor/IshRuntime";
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -439,6 +478,7 @@
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Vendor/IshRuntime";
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -460,6 +500,7 @@
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Vendor/IshRuntime";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Gitling.app/Gitling";
@@ -564,6 +605,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Vendor/static-libgit2";
 		};
+		B20000000000000000000003 /* XCLocalSwiftPackageReference "Vendor/SwiftTerm" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/SwiftTerm;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -571,6 +616,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1000000000000000000000D /* XCLocalSwiftPackageReference "Vendor/static-libgit2" */;
 			productName = "static-libgit2";
+		};
+		B20000000000000000000002 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B20000000000000000000003 /* XCLocalSwiftPackageReference "Vendor/SwiftTerm" */;
+			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

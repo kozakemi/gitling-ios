@@ -100,14 +100,17 @@ struct HistorySearchPage: View {
                     if !model.isLoading && model.error == nil && model.items.isEmpty { Text("No matching commits") }
                 }
                 ForEach(model.items) { commit in
-                    NavigationLink {
-                        CommitDetailView(repo: repo, commit: commit)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(commit.summary)
-                            Text(commit.author + " · " + commit.date.formatted()).font(.caption).foregroundStyle(.secondary)
-                            Text(String(commit.id.prefix(12))).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        NavigationLink {
+                            CommitDetailView(repo: repo, commit: commit)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(commit.summary)
+                                Text(commit.author + " · " + commit.date.formatted()).font(.caption).foregroundStyle(.secondary)
+                                Text(String(commit.id.prefix(12))).font(.caption.monospaced()).foregroundStyle(.secondary)
+                            }
                         }
+                        CommitHashCopyButton(oid: commit.id, iconOnly: true)
                     }
                 }
                 if model.hasMore {

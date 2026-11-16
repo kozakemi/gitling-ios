@@ -106,6 +106,16 @@ final class RepoStore: ObservableObject {
         if waitForStatus { await statuses.value }
     }
 
+    /// Shell commands can change any path or ref without passing through the
+    /// native mutation APIs. Refresh persistent pages, cached headers and Files
+    /// only after the complete guest process tree has relinquished its lease.
+    func refreshAfterTerminal(repository name: String) async {
+        RepoDetailCache.remove(name)
+        revision += 1
+        if FileProviderRegistration.usesProviderLocation { FileProviderRegistration.signal() }
+        await reload(repository: name)
+    }
+
     private func readStatuses(metadata: Task<[RepoSummary], Never>, generation: Int, root: URL,
                               reader: @escaping @Sendable (URL) -> RepoSummary?) -> Task<Void, Never> {
         return Task { @MainActor [weak self] in
@@ -641,9 +651,7 @@ final class RepoStore: ObservableObject {
 
     func delete(name: String) {
         let url = root.appendingPathComponent(name, isDirectory: true)
-        removeRepoLink(name)
-        RepoDetailCache.remove(name)
-        run(String(localized: "Working…"), repository: name, publishStorage: true) {
+        run(String(localized: "Working…"), repository: name, publishStorage: true, resetLinks: true) {
             try RepoWriteLock.withLock(at: url) {
                 try RepoStorage.removeRepository(named: name)
                 WorktreeLink.remove(repoName: name)

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-enum FileInspectSection: Hashable {
+enum FileInspectSection: Hashable, CaseIterable {
     case contents, history, blame
 }
 
@@ -20,6 +20,7 @@ struct FileInspectPicker: View {
             }
         }
         .accessibilityIdentifier("file.inspect.section")
+        .swipeSelection($section, values: FileInspectSection.allCases)
     }
 
     private var picker: some View {
@@ -42,13 +43,15 @@ struct FilePreview: View {
         DiffPanelLayout {
             FileInspectPicker(section: $section).padding(.horizontal)
         } content: {
-            switch section {
-            case .contents:
-                PreviewContentsPage(repo: repo, source: .worktree(relative))
-            case .history:
-                FileHistoryList(repo: repo, path: relative, revision: store.revision)
-            case .blame:
-                FileBlameList(repo: repo, path: relative, revision: store.revision)
+            LazySectionPages(selection: $section, values: FileInspectSection.allCases) { page in
+                switch page {
+                case .contents:
+                    PreviewContentsPage(repo: repo, source: .worktree(relative))
+                case .history:
+                    FileHistoryList(repo: repo, path: relative, revision: store.revision)
+                case .blame:
+                    FileBlameList(repo: repo, path: relative, revision: store.revision)
+                }
             }
         }
         .navigationTitle(name)
@@ -180,21 +183,24 @@ private struct FileHistoryList: View {
             } else {
                 RepositorySearchStatus(loading: model.isLoading, count: model.items.count, scanned: model.scanned, hasMore: model.hasMore)
                 ForEach(model.items) { entry in
-                    NavigationLink {
-                        FileRevisionPage(repo: repo, entry: entry)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(entry.commit.summary)
-                            Text(FileInspectionLabels.change(entry))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(entry.commit.author + " · " + entry.commit.date.formatted())
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(String(entry.commit.id.prefix(12)))
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        NavigationLink {
+                            FileRevisionPage(repo: repo, entry: entry)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(entry.commit.summary)
+                                Text(FileInspectionLabels.change(entry))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(entry.commit.author + " · " + entry.commit.date.formatted())
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(String(entry.commit.id.prefix(12)))
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        CommitHashCopyButton(oid: entry.commit.id, iconOnly: true)
                     }
                 }
                 if model.hasMore {
@@ -226,7 +232,7 @@ private struct FileRevisionPage: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.commit.summary).font(.headline)
                         Text(FileInspectionLabels.change(entry)).font(.caption)
-                        Text(entry.commit.id).font(.caption.monospaced()).textSelection(.enabled)
+                        CommitHashCopyButton(oid: entry.commit.id, full: true).font(.caption.monospaced())
                     }
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
                 }
@@ -260,7 +266,7 @@ private struct FileBlameList: View {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(alignment: .firstTextBaseline) {
                                 if let commitID = span.commitID {
-                                    Text(String(commitID.prefix(7)))
+                                    CommitHashCopyButton(oid: commitID)
                                         .font(.caption.monospaced())
                                     Text(span.author)
                                         .font(.caption)

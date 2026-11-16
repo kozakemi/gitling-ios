@@ -67,14 +67,16 @@ struct PreviewTextPage: View {
             }
         }
         .accessibilityIdentifier("file.preview.markdown.mode")
-        if textSize >= .xxxLarge {
-            picker.pickerStyle(.menu)
-        } else {
-            ViewThatFits(in: .horizontal) {
-                picker.pickerStyle(.segmented)
+        Group {
+            if textSize >= .xxxLarge {
                 picker.pickerStyle(.menu)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    picker.pickerStyle(.segmented)
+                    picker.pickerStyle(.menu)
+                }
             }
-        }
+        }.swipeSelection($markdownMode, values: PreviewMarkdownMode.allCases)
     }
 }
 

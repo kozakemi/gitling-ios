@@ -5,12 +5,12 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PATH="$DEVELOPER_DIR/usr/bin:$PATH"
 
-# Pin local testing to the two approved devices; never fall back to a user's device.
+# Pin local testing to the approved devices (including the user-authorized iPad); never fall back to a user's device.
 export TEST_DESTINATION="${TEST_DESTINATION:-}"
 export CI="${CI:-}"
 destination="$(xcrun simctl list devices available --json | python3 -c '
 import json, os, sys
-approved = ["0ED9A62A-B9F4-4BC9-AA3B-0CF0B3D93F1E", "D2A546B7-9C01-4668-B2EE-F13A1B9FC9D5"]
+approved = ["0ED9A62A-B9F4-4BC9-AA3B-0CF0B3D93F1E", "D2A546B7-9C01-4668-B2EE-F13A1B9FC9D5", "14AB2E30-A0DE-4DC1-9879-283ED002AFC4"]
 protected = "28474273-D7E2-4599-9D76-43642D39CB22"
 devices = [d for group in json.load(sys.stdin)["devices"].values() for d in group if d.get("isAvailable")]
 known = {d["udid"]: d for d in devices}

@@ -1,0 +1,4 @@
+module GitlingIsh {
+    header "../../Prototypes/Ish/RuntimeBridge.h"
+    export *
+}

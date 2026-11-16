@@ -2518,7 +2518,8 @@
             "value": "拣选出现冲突，分支保持原样。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "The demo only clones HTTPS repositories.": {
       "localizations": {
@@ -2567,7 +2568,8 @@
             "value": "合并出现冲突。演示版已让分支保持原样。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "The rebase produced conflicts. The branch was left unchanged.": {
       "localizations": {
@@ -2583,7 +2585,8 @@
             "value": "变基出现冲突，分支保持原样。"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "This branch": {
       "localizations": {
@@ -7713,45 +7716,141 @@
     },
     "This version is binary.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is binary." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是二进制文件。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版はバイナリです。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is binary."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本是二进制文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版はバイナリです。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This version is too large to show.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is too large to show." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本太大，无法显示。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版は大きすぎて表示できません。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is too large to show."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本太大，无法显示。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版は大きすぎて表示できません。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This version is not UTF-8 text.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is not UTF-8 text." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本不是 UTF-8 文本。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版は UTF-8 テキストではありません。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is not UTF-8 text."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本不是 UTF-8 文本。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版は UTF-8 テキストではありません。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This version is a symbolic link and was not followed.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is a symbolic link and was not followed." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是符号链接，没有跟随链接目标。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版はシンボリックリンクなので、リンク先は開いていません。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is a symbolic link and was not followed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本是符号链接，没有跟随链接目标。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版はシンボリックリンクなので、リンク先は開いていません。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This version is a submodule.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is a submodule." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是子模块。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版はサブモジュールです。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is a submodule."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本是子模块。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版はサブモジュールです。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This version is a directory.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "This version is a directory." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这个版本是目录。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "この版はディレクトリです。" } }
-      }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version is a directory."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个版本是目录。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この版はディレクトリです。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "The object for this version is missing.": {
       "localizations": {
@@ -10563,9 +10662,20 @@
     },
     "Remote images, scripts, and other repository files are not loaded.": {
       "localizations": {
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不会加载远程图片、脚本或仓库里的其他文件。" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "リモート画像、スクリプト、リポジトリ内の他のファイルは読み込みません。" } }
-      }
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不会加载远程图片、脚本或仓库里的其他文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リモート画像、スクリプト、リポジトリ内の他のファイルは読み込みません。"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "This system cannot preview this file.": {
       "localizations": {
@@ -11007,7 +11117,8 @@
             "value": "リポジトリを読み込み中…"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Checking status…": {
       "localizations": {
@@ -11071,6 +11182,476 @@
           "stringUnit": {
             "state": "translated",
             "value": "転送済み: %@ / %@"
+          }
+        }
+      }
+    },
+    "%lld / %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld / %2$lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld"
+          }
+        }
+      }
+    },
+    "Markdown": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown"
+          }
+        }
+      }
+    },
+    "Offline Shell": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离线终端"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフラインシェル"
+          }
+        }
+      }
+    },
+    "Preparing Git…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备 Git…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git を準備しています…"
+          }
+        }
+      }
+    },
+    "Terminal Text Size": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端字号"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の文字サイズ"
+          }
+        }
+      }
+    },
+    "Start Shell": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动终端"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シェルを開始"
+          }
+        }
+      }
+    },
+    "Stop Shell": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束终端"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シェルを停止"
+          }
+        }
+      }
+    },
+    "Stopping…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在停止…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止中…"
+          }
+        }
+      }
+    },
+    "Ctrl-C": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ctrl-C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ctrl-C"
+          }
+        }
+      }
+    },
+    "Preparing offline shell…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备离线终端…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフラインシェルを準備中…"
+          }
+        }
+      }
+    },
+    "Repository: /shared. Other repository operations pause until the shell exits.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仓库目录：/shared。终端退出前，其他仓库操作将暂停。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リポジトリ: /shared。シェルが終了するまで他のリポジトリ操作は停止します。"
+          }
+        }
+      }
+    },
+    "Leaving this page or putting the app in the background ends the shell and its jobs.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离开此页面或将应用切到后台会结束终端及其所有任务。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この画面を離れるか、アプリをバックグラウンドにするとシェルとすべてのジョブが終了します。"
+          }
+        }
+      }
+    },
+    "Offline terminal resources are missing. Rebuild the app.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少离线终端资源，请重新构建应用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフライン端末リソースがありません。アプリを再ビルドしてください。"
+          }
+        }
+      }
+    },
+    "Could not start the offline shell.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法启动离线终端。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフラインシェルを開始できませんでした。"
+          }
+        }
+      }
+    },
+    "Could not prepare offline Git.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法准备离线 Git。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフライン Git を準備できませんでした。"
+          }
+        }
+      }
+    },
+    "Shell exit could not be confirmed. Repository access stays locked; restart the app before continuing.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法确认终端已完全退出。仓库访问将保持锁定，请重新启动应用后继续。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シェルの終了を確認できません。リポジトリはロックされたままです。アプリを再起動してください。"
+          }
+        }
+      }
+    },
+    "Shell exited.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端已退出。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シェルが終了しました。"
+          }
+        }
+      }
+    },
+    "Copy commit hash": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制提交哈希"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミットハッシュをコピー"
+          }
+        }
+      }
+    },
+    "Commit hash copied": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制提交哈希"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミットハッシュをコピーしました"
+          }
+        }
+      }
+    },
+    "Waiting for terminal to pause…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待终端安全暂停…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の安全な一時停止を待っています…"
+          }
+        }
+      }
+    },
+    "End the terminal session before changing or deleting its working folder.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先结束终端会话，再更换工作目录或删除仓库。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作業フォルダの変更または削除前に端末セッションを終了してください。"
+          }
+        }
+      }
+    },
+    "Terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナル"
+          }
+        }
+      }
+    },
+    "Reset Terminal Environment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重设终端环境"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナル環境をリセット"
+          }
+        }
+      }
+    },
+    "Reset Terminal Environment?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重设终端环境？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナル環境をリセットしますか？"
+          }
+        }
+      }
+    },
+    "Preparing terminal reset…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备重设终端…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターミナルのリセットを準備中…"
+          }
+        }
+      }
+    },
+    "Close Gitling and reopen it to finish resetting the terminal.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请关闭并重新打开 Gitling，完成终端环境重设。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitling を終了して開き直すと、ターミナルのリセットが完了します。"
+          }
+        }
+      }
+    },
+    "Terminal reset is ready. Close Gitling and reopen it to use the clean offline environment.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新终端环境已准备好。请关闭并重新打开 Gitling，使用干净的离线环境。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい環境の準備ができました。Gitling を終了して開き直すと、初期状態のオフライン環境を使えます。"
+          }
+        }
+      }
+    },
+    "Shell commands can remove Git, editors, startup files and private terminal files. Reset restores the bundled offline environment after reopening the app.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shell 命令可能删除 Git、编辑器、启动配置及终端私有文件。重设后重新打开应用，可恢复随包提供的离线环境。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シェルコマンドは Git、エディタ、起動設定、端末内のファイルを削除できます。リセット後にアプリを開き直すと、付属のオフライン環境に復元されます。"
+          }
+        }
+      }
+    },
+    "This ends terminal sessions and removes their private Linux files, settings and added packages after reopening Gitling. Gitling-managed repositories, linked working folders, their commits and saved app credentials are kept. Repositories cloned inside the private Linux environment are removed too. Shell commands can still modify repository files; reset does not undo those changes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作会结束终端会话，并在重新打开 Gitling 后清除 Linux 私有文件、配置和额外安装的软件包。Gitling 管理的仓库、关联工作目录、其中的提交及应用保存的凭据会保留。克隆在 Linux 私有环境内的仓库也会被清除。Shell 命令仍可修改仓库文件；重设不会撤销这些修改。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末セッションを終了し、Gitling を開き直した後に Linux 内のファイル、設定、追加パッケージを削除します。Gitling 管理下のリポジトリ、リンクした作業フォルダ、コミット、アプリに保存した認証情報は保持します。Linux の私有環境内にクローンしたリポジトリも削除されます。リセットはシェルによるリポジトリの変更を元に戻しません。"
           }
         }
       }
