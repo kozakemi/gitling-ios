@@ -18,26 +18,22 @@ Gitling for iOS brings the Gitling mobile Git workflow to iOS: clone repositorie
 browse history and diffs, commit, and push. Workspaces are exposed in the Files app
 so other editors can modify files.
 
-## Progress and roadmap
-
-[Project progress, validation, limitations, and priorities (Chinese)](docs/project-progress.md), updated 2026-11-14.
-
 ## Features
 
 - Copy-import existing repositories while preserving the source, full local Git data, and uncommitted state; convert bare repositories offline
 
 - Stage and unstage individual files, with separate working-tree and staged diffs
-- Restore individual working files from the index, including deleted files, while preserving staged changes ([details](docs/file-restore.md))
+- Restore individual working files from the index, including deleted files, while preserving staged changes
 - Save, list, apply, pop, and delete stashes, optionally including untracked files
-- Recoverable merge/rebase/cherry-pick conflicts: inspect both sides and the working file, import external edits, confirm resolutions, continue or abort ([details](docs/conflict-resolution.md))
-- Submodule status, initialization, updates, and recursion, with dirty-worktree protection and resumable failures ([details](docs/submodules.md))
-- Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection ([details](docs/tags-and-diff-layout.md))
-- Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination ([details](docs/repository-search.md))
-- File history, historical versions, worktree blame with commit navigation, and basic syntax highlighting ([details](docs/file-inspection.md))
-- Compare any two fixed commits, browse changed files, and switch between their file previews ([details](docs/commit-comparison.md))
-- Read-only worktree and historical previews for images, PDF, system-supported Office/RTF/iWork documents, and audio/video; binary hex paging and ZIP directory listings ([details](docs/file-preview-plan.md))
-- Markdown opens rendered by default, with GFM tables, task lists, footnotes, alerts, code highlighting, and repository-relative images. Remote images load only after tapping the prompt; text and source previews have a persistent line-number toggle ([details](docs/markdown-preview.md))
-- Live Git operation progress, including LFS download bytes and percentages. The home screen shows branch metadata first and refreshes status per repository in the background ([details](docs/lfs-progress-and-list-refresh.md))
+- Recoverable merge/rebase/cherry-pick conflicts: inspect both sides and the working file, import external edits, confirm resolutions, continue or abort
+- Submodule status, initialization, updates, and recursion, with dirty-worktree protection and resumable failures
+- Tag lists, details, and safe checkout with explicit detached HEAD state and local-change protection
+- Full-history search by message, author/email and OID; recursive file name/path search with cancellation and pagination
+- File history, historical versions, worktree blame with commit navigation, and basic syntax highlighting
+- Compare any two fixed commits, browse changed files, and switch between their file previews
+- Read-only worktree and historical previews for images, PDF, system-supported Office/RTF/iWork documents, and audio/video; binary hex paging and ZIP directory listings
+- Markdown opens rendered by default, with GFM tables, task lists, footnotes, alerts, code highlighting, and repository-relative images. Remote images load only after tapping the prompt; text and source previews have a persistent line-number toggle
+- Live Git operation progress, including LFS download bytes and percentages. The home screen shows branch metadata first and refreshes status per repository in the background
 - Support `feature/topic` branch names, branch renaming, and safe deletion of merged branches
 - Set or clear upstream branches; select a remote for Fetch/Push, with default sync following the upstream remote and branch name
 
@@ -50,7 +46,7 @@ so other editors can modify files.
 - Colorized commit diffs: additions in green, deletions in red, hunk headers in blue,
   file headers in gray
 - Chinese, English, and Japanese interfaces
-- Gitling location in the Files app through a File Provider extension ([Duo simulator access notes](docs/duo-files-access.md))
+- Gitling location in the Files app through a File Provider extension
 - Link an external folder from the Files app as the working tree
 - GitHub Device Flow sign-in
 - GitLab.com and self-hosted GitLab, with multiple accounts per platform
@@ -116,8 +112,8 @@ You can also build it manually first:
 ./scripts/test.sh
 ```
 
-Local simulator destinations follow [AGENTS.md](AGENTS.md); the script uses existing
-allowlisted devices and disables parallel simulator cloning. CI uses an existing
+Local tests use the simulator allowlist configured in the test script and disable
+parallel simulator cloning. CI uses an existing
 device on its temporary host.
 
 Latest local validation (2026-11-14): **325/325 tests passed on each of iOS 18.6 and
@@ -141,7 +137,7 @@ GitlingTests/            XCTest unit tests
 Vendor/static-libgit2/   libgit2 static xcframework and local Swift Package
 Vendor/libssh2/          Prebuilt libssh2/OpenSSL static libraries and licenses
 scripts/                 Build, IPA, and localization scripts
-docs/                    Feature notes, validation, roadmap, and screenshots
+docs/                    Application screenshots
 ```
 
 ## Accounts and credentials

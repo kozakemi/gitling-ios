@@ -13,26 +13,22 @@
 
 Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克隆仓库、查看历史和差异、提交并推送，同时把工作区放进「文件」App，方便其他编辑器修改文件。
 
-## 进度与后续计划
-
-[查看当前工作进度、验证结果、已知限制及后续优先级](docs/project-progress.md)（更新于 2026-11-14）。
-
 ## 功能
 
 - 复制导入已有仓库，保留源目录、完整 Git 数据及未提交状态；支持裸仓库离线转换
 
 - 状态页逐文件暂存、取消暂存，并分别查看工作区和暂存区差异
-- 逐文件放弃未暂存修改及恢复已删除文件，保留索引和已暂存内容（[说明](docs/file-restore.md)）
+- 逐文件放弃未暂存修改及恢复已删除文件，保留索引和已暂存内容
 - Stash 保存、列表、应用、恢复并删除，支持包含未跟踪文件
-- Merge/rebase/cherry-pick 冲突列表、双方与工作文件查看、外部编辑导入、确认解决、继续/中止及重启恢复（[说明](docs/conflict-resolution.md)）
-- 子模块状态、初始化、更新及递归处理，保护本地修改并支持失败后重试（[说明](docs/submodules.md)）
-- Tag 列表、详情及安全检出，明确 detached HEAD 并保护未提交修改（[说明](docs/tags-and-diff-layout.md)）
-- 提交正文、作者/邮箱和 OID 的完整历史搜索，以及递归文件名/路径搜索，支持取消和分页（[说明](docs/repository-search.md)）
-- 文件历史、历史版本、工作区 Blame 与提交跳转，以及基础语法高亮（[说明](docs/file-inspection.md)）
-- 任意两个固定提交比较、变更文件列表及两端文件预览切换（[说明](docs/commit-comparison.md)）
-- 工作区与历史版本的只读图片、PDF、系统支持的 Office/RTF/iWork 文档及音视频预览，以及二进制十六进制分页和 ZIP 目录浏览（[说明](docs/file-preview-plan.md)）
-- Markdown 默认渲染，支持 GFM 表格、任务列表、脚注、提示块、代码高亮和仓库相对路径图片；远程图片点击提示后才加载，文本及源码提供可记忆的行号开关（[说明](docs/markdown-preview.md)）
-- Git 操作实时进度，包括 LFS 下载字节与百分比；首页先显示分支，再逐仓库后台更新状态（[说明](docs/lfs-progress-and-list-refresh.md)）
+- Merge/rebase/cherry-pick 冲突列表、双方与工作文件查看、外部编辑导入、确认解决、继续/中止及重启恢复
+- 子模块状态、初始化、更新及递归处理，保护本地修改并支持失败后重试
+- Tag 列表、详情及安全检出，明确 detached HEAD 并保护未提交修改
+- 提交正文、作者/邮箱和 OID 的完整历史搜索，以及递归文件名/路径搜索，支持取消和分页
+- 文件历史、历史版本、工作区 Blame 与提交跳转，以及基础语法高亮
+- 任意两个固定提交比较、变更文件列表及两端文件预览切换
+- 工作区与历史版本的只读图片、PDF、系统支持的 Office/RTF/iWork 文档及音视频预览，以及二进制十六进制分页和 ZIP 目录浏览
+- Markdown 默认渲染，支持 GFM 表格、任务列表、脚注、提示块、代码高亮和仓库相对路径图片；远程图片点击提示后才加载，文本及源码提供可记忆的行号开关
+- Git 操作实时进度，包括 LFS 下载字节与百分比；首页先显示分支，再逐仓库后台更新状态
 - 支持 `feature/topic` 分支名、重命名，以及安全删除已合并分支
 - 设置或清除上游分支；Fetch/Push 可选择远程，默认同步跟随上游及其实际分支名
 
@@ -44,7 +40,7 @@ Gitling for iOS 的目标是把 Gitling 的移动 Git 工作流带到 iOS：克�
 - 可以检出选中的本地分支；选择远程分支时可创建同名本地跟踪分支并检出
 - 提交差异按行着色：新增绿色、删除红色、hunk 蓝色、文件头灰色
 - 中文、英文、日语界面
-- 通过 File Provider 在「文件」App 中提供 Gitling 位置（[Duo 模拟器访问说明](docs/duo-files-access.md)）
+- 通过 File Provider 在「文件」App 中提供 Gitling 位置
 - 支持关联「文件」App 中的外部文件夹作为工作区
 - GitHub Device Flow 登录
 - GitLab.com 和自建 GitLab，支持多个同平台账户
@@ -105,7 +101,7 @@ GitHub Actions 会在推送到 `main`、提交 Pull Request 以及手动触发�
 ./scripts/test.sh
 ```
 
-本机模拟器遵守 [AGENTS.md](AGENTS.md) 白名单；测试脚本使用已有设备并关闭并行克隆。CI 使用临时宿主已有设备。
+本机测试脚本仅使用已配置的模拟器白名单设备，并关闭并行克隆；CI 使用临时宿主已有设备。
 
 最近本机验证（2026-11-14）：iOS 18.6 与 Duo QA / iOS 27.2 各 **325/325 通过，0 失败、0 跳过**。通用 iOS Release 未签名构建、本地化及模拟器应用严格签名检查通过。模拟器验证不替代真机和第三方文件提供方验收。
 
@@ -125,7 +121,7 @@ GitlingTests/            XCTest 单元测试
 Vendor/static-libgit2/   libgit2 静态 xcframework 与本地 Swift Package
 Vendor/libssh2/          libssh2/OpenSSL 静态库与许可证
 scripts/                 构建、IPA、本地化检查脚本
-docs/                    功能说明、验证记录、路线图和截图
+docs/                    应用截图
 ```
 
 ## 账户与凭据

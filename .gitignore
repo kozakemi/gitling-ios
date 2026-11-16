@@ -12,7 +12,10 @@ xcuserdata/
 Vendor/src/
 Vendor/build/
 
-# Local agent tooling notes and machine maintenance records
+# Local instructions, agent rules, and development records
+/AGENTS.md
+/agent.md
+/.cursor/
+/docs/*.md
 /docs/tooling/
 /docs/tasks/
-/docs/simulator-policy.md
