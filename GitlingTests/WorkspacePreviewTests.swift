@@ -926,10 +926,16 @@ final class WorkspacePreviewInterfaceTests: XCTestCase {
     private final class MarkdownState: ObservableObject {
         @Published var source = "**same**"
         @Published var size = DynamicTypeSize.large
+        @Published var scheme = ColorScheme.light
     }
     private struct MarkdownHarness: View {
         @ObservedObject var state: MarkdownState
-        var body: some View { PreviewMarkdownView(markdown: state.source).environment(\.dynamicTypeSize, state.size) }
+        var body: some View {
+            PreviewMarkdownView(markdown: state.source)
+                .background(Color(.systemGroupedBackground))
+                .environment(\.dynamicTypeSize, state.size)
+                .environment(\.colorScheme, state.scheme)
+        }
     }
 
     func testMarkdownUpdatesFormattingWithSameTextAndTracksDynamicType() async throws {
@@ -949,6 +955,27 @@ final class WorkspacePreviewInterfaceTests: XCTestCase {
         }
         let boldText = await value("document.querySelector('strong')?.textContent")
         XCTAssertEqual(boldText, "same")
+        // A transparent document and native scroll canvas must expose the
+        // containing page in both themes, rather than GitHub's fixed palette.
+        for scheme in [ColorScheme.light, .dark, .light] {
+            state.scheme = scheme
+            let expected = scheme == .dark ? "dark" : "light"
+            for _ in 0..<200 {
+                if await value("getComputedStyle(document.documentElement).colorScheme") == expected,
+                   await value("document.querySelector('strong')?.textContent") == "same" { break }
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            let theme = await value("getComputedStyle(document.documentElement).colorScheme")
+            let backgrounds = await value("[document.documentElement,document.body].map(e=>getComputedStyle(e).backgroundColor).join('|')")
+            XCTAssertEqual(theme, expected)
+            XCTAssertEqual(backgrounds, "rgba(0, 0, 0, 0)|rgba(0, 0, 0, 0)")
+            XCTAssertFalse(view.isOpaque)
+            // WebKit can normalize clear gray into transparent RGB. Compare
+            // opacity rather than UIColor's color-space-dependent equality.
+            XCTAssertEqual(try XCTUnwrap(view.backgroundColor).cgColor.alpha, 0)
+            XCTAssertEqual(try XCTUnwrap(view.scrollView.backgroundColor).cgColor.alpha, 0)
+            XCTAssertEqual(view.underPageBackgroundColor.cgColor.alpha, 0)
+        }
         let normal = await value("getComputedStyle(document.body).fontSize")
         state.source = "same"
         for _ in 0..<200 {

@@ -13,7 +13,6 @@ struct MarkdownDocument: Sendable {
         let imagePolicy = sources.isEmpty ? "'none'" : sources.joined(separator: " ")
         let size = min(96, max(12, pointSize))
         let foreground = dark ? "#e6edf3" : "#1f2328"
-        let background = dark ? "#0d1117" : "#ffffff"
         let muted = dark ? "#9198a1" : "#59636e"
         let border = dark ? "#3d444d" : "#d1d9e0"
         let panel = dark ? "#151b23" : "#f6f8fa"
@@ -26,7 +25,8 @@ struct MarkdownDocument: Sendable {
         <style>
         :root { color-scheme: \(dark ? "dark" : "light"); }
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 16px; background: \(background); color: \(foreground); font: \(size)px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; overflow-wrap: break-word; -webkit-text-size-adjust: 100%; }
+        html,body { background: transparent; }
+        body { margin: 0; padding: 16px; color: \(foreground); font: \(size)px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; overflow-wrap: break-word; -webkit-text-size-adjust: 100%; }
         main { max-width: 1012px; margin: auto; }
         main > :first-child { margin-top: 0 !important; }
         p, ul, ol, blockquote, table, pre, details, .code-block { margin: 0 0 16px; }
@@ -175,6 +175,10 @@ struct MarkdownWebPreview: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = .clear
+        // Let the native page show through, including overscroll and the blank
+        // document used while changing sources. Avoid a second theme palette.
+        view.scrollView.backgroundColor = .clear
+        view.underPageBackgroundColor = .clear
         view.accessibilityIdentifier = "file.preview.markdown"
         view.allowsLinkPreview = false
         return view
